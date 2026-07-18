@@ -1,0 +1,17 @@
+{
+  "name": "@equilibrium/prisma",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Prisma introspection-mode client for edge functions and server-side workers. Does not own migrations -- supabase/migrations is the source of truth.",
+  "scripts": {
+    "db:pull": "prisma db pull",
+    "generate": "prisma generate",
+    "validate": "prisma validate"
+  },
+  "devDependencies": {
+    "prisma": "6.19.3"
+  },
+  "dependencies": {
+    "@prisma/client": "6.19.3"
+  }
+}
