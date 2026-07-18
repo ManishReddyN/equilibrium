@@ -32,7 +32,7 @@ the goal is Play Store submission, and this machine can't build/verify iOS regar
 | Phase | Description | Status | Commit |
 |---|---|---|---|
 | 0 | Toolchain and repo scaffold | Done | `453c730` |
-| 1 | Core dependencies and native configuration | Done | (pending commit) |
+| 1 | Core dependencies and native configuration | Done | `5290caf` |
 | 2 | Backend: Supabase schema, RLS, Prisma | Done | `ab18310` |
 | 3 | App architecture: folders, navigation, data layer, household profile engine | In progress | — |
 | 4 | Screens and interactions | Not started | — |
@@ -75,6 +75,12 @@ the goal is Play Store submission, and this machine can't build/verify iOS regar
   and `backend` (`supabase start` + `supabase test db` + Prisma validate/drift check).
   `app/android/gradlew`'s executable bit was fixed in git (was `100644`, needed `100755`).
   Fastlane lanes, release signing, and Play Store upload steps are still to come.
+- **CI verified green end-to-end** at commit `02d317e` (both `app` and `backend` jobs passing,
+  including the real Android debug build on `ubuntu-latest`). First run (`5290caf`) failed on
+  two issues, both fixed same-day: an ESLint config gap for the `jest` global in
+  `jest.setup.js`, and a false-positive Prisma drift failure caused by CI's `npm install -g
+  supabase` grabbing latest (newer GoTrue auth image, extra schema column) instead of the
+  locally-pinned `2.108.0` — CI now pins the same version. Full detail in `docs/DECISIONS.md`.
 
 ## Outstanding items needing your input
 
@@ -98,5 +104,5 @@ the goal is Play Store submission, and this machine can't build/verify iOS regar
 ## Next step
 
 Phase 3 (app architecture: folder hierarchy, navigation, Supabase client, offline-first data
-layer, household profile engine) is in progress — see
+layer, household profile engine) is starting now — see
 `docs/roommate-app-execution-plan.md` lines 513-594.
