@@ -92,7 +92,11 @@ jobs:
           node-version: '22'
 
       - name: Install Supabase CLI
-        run: npm install -g supabase
+        # Pinned to match the exact version used to generate the committed prisma/schema.prisma
+        # (via `supabase --version` locally) -- newer CLI releases bundle newer GoTrue/auth images
+        # whose schema can gain columns (e.g. sso_providers.custom_claims_allowlist), which broke
+        # the Prisma drift check when CI installed "latest" instead. See docs/DECISIONS.md.
+        run: npm install -g supabase@2.108.0
 
       - name: Start local Supabase stack (applies migrations)
         run: supabase start

@@ -10,5 +10,9 @@ module.exports = {
         tsconfigRootDir: __dirname,
       },
     },
+    {
+      files: ['jest.setup.js', 'jest.config.js'],
+      env: {jest: true},
+    },
   ],
 };
