@@ -12,7 +12,11 @@ confirmation immediately before execution, even under a broader standing go-ahea
 ## Repo / environment
 
 - Local: `D:\personal\equilibrium`, git repo at the `equilibrium/` root.
-- Remote: `https://github.com/ManishReddyN/equilibrium` (private).
+- Remote: `https://github.com/ManishReddyN/equilibrium` (**public** — flipped from private on
+  2026-07-18 to get unlimited free GitHub Actions minutes on all runner types, notably `macos-15`,
+  which is heavily rate-limited on private repos; see `docs/DECISIONS.md`). Verified no secrets
+  are committed before flipping visibility (`.env*` gitignored; only committed keystore is RN's
+  standard shared debug keystore, not a release key).
 - Windows 11 dev machine, no macOS/Xcode — iOS native builds/simulator/Fastlane iOS lane are
   blocked here by Apple's EULA (no macOS virtualization on non-Apple hardware). iOS phases are
   limited to writing source/config a Mac can later build. See `docs/RUNBOOK.md`.
