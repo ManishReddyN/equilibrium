@@ -1,0 +1,120 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  app:
+    name: App (typecheck, lint, test, Android debug build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: app/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Lint (ESLint + no-emoji)
+        run: npm run lint
+
+      - name: Unit tests
+        run: npx jest --ci
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Write placeholder Firebase config
+        # google-services.json is gitignored (real one is per-developer/CI-injected,
+        # see docs/RUNBOOK.md) but the google-services Gradle plugin hard-fails if
+        # the file is entirely absent, so CI needs the same placeholder devs use locally.
+        run: |
+          cat > android/app/google-services.json <<'EOF'
+          {
+            "project_info": {
+              "project_number": "000000000000",
+              "project_id": "equilibrium-app-placeholder",
+              "storage_bucket": "equilibrium-app-placeholder.appspot.com"
+            },
+            "client": [
+              {
+                "client_info": {
+                  "mobilesdk_app_id": "1:000000000000:android:0000000000000000000000",
+                  "android_client_info": {"package_name": "com.equilibrium.app"}
+                },
+                "oauth_client": [],
+                "api_key": [{"current_key": "PLACEHOLDER_REPLACED_BY_REAL_FIREBASE_PROJECT_IN_PHASE_5"}],
+                "services": {"appinvite_service": {"other_platform_oauth_client": []}}
+              }
+            ],
+            "configuration_version": "1"
+          }
+          EOF
+
+      - name: Accept Android SDK licenses
+        run: yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null || true
+
+      - name: Install required Android SDK packages
+        run: |
+          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager \
+            "platforms;android-35" "build-tools;35.0.0" "platform-tools" > /dev/null
+
+      - name: Write local.properties
+        run: echo "sdk.dir=$ANDROID_HOME" > android/local.properties
+
+      - name: Android debug build
+        working-directory: app/android
+        run: ./gradlew assembleDebug --no-daemon
+
+  backend:
+    name: Backend (Supabase migrations, pgTAP, Prisma drift)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install Supabase CLI
+        run: npm install -g supabase
+
+      - name: Start local Supabase stack (applies migrations)
+        run: supabase start
+
+      - name: pgTAP test suite
+        run: supabase test db
+
+      - name: Install Prisma
+        working-directory: prisma
+        run: npm ci
+
+      - name: Prisma validate
+        working-directory: prisma
+        env:
+          DATABASE_URL: 'postgresql://postgres:postgres@127.0.0.1:54322/postgres'
+        run: npx prisma validate
+
+      - name: Prisma drift check
+        working-directory: prisma
+        env:
+          DATABASE_URL: 'postgresql://postgres:postgres@127.0.0.1:54322/postgres'
+        run: |
+          cp schema.prisma /tmp/schema.prisma.committed
+          npx prisma db pull --print > /tmp/schema.prisma.pulled 2>/dev/null
+          diff -B /tmp/schema.prisma.committed /tmp/schema.prisma.pulled

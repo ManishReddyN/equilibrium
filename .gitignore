@@ -4,3 +4,15 @@
 supabase/.temp/
 prisma/generated/
 *.log
+
+# Firebase config -- real files are per-developer/CI-injected, never committed.
+# A placeholder google-services.json exists on disk locally so Gradle's
+# google-services plugin has something to process; see docs/RUNBOOK.md.
+app/android/app/google-services.json
+app/ios/EquilibriumApp/GoogleService-Info.plist
+
+# Android release signing -- generated locally/in CI, never committed.
+app/android/keystore.properties
+app/android/app/*.keystore
+app/android/app/*.jks
+!app/android/app/debug.keystore
