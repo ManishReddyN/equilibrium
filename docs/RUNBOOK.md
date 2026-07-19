@@ -8,6 +8,7 @@
 - **Firebase / push**: `google-services.json` and `GoogleService-Info.plist` are placeholders until a Firebase project is created. `TODO(user)`: create the Firebase project and supply real config files.
 - **Apple / Google Play credentials**: `APP_STORE_CONNECT_API_KEY_JSON`, `PLAY_JSON_KEY`, Fastlane Match certificates repo — none of these exist yet. `TODO(user)`: provision an Apple Developer account/App Store Connect API key, a Google Play Console service account, and a private `equilibrium-certificates` git repo for Match.
 - **Android release keystore**: `TODO(user)`: generate an upload keystore locally and record its location outside version control.
+- **Push pipeline Vault secrets**: `supabase/migrations/0008_notifications_cron.sql`'s `fn_invoke_edge_function` reads `project_url`/`service_role_key` from Supabase Vault to call the deployed edge functions from Postgres (trigger + cron); it no-ops safely until these exist. `TODO(user)`: once the project is linked and `push-dispatch`/`digest-worker`/`rotation-tick` are deployed (`supabase functions deploy`), run against the live project (dashboard SQL editor or `supabase db`, not a migration file, since these are project-specific secrets that must never be committed): `select vault.create_secret('https://<project-ref>.supabase.co', 'project_url');` and `select vault.create_secret('<service-role-key-from-dashboard-api-settings>', 'service_role_key');`
 
 ## Phase 0 verification gate results
 

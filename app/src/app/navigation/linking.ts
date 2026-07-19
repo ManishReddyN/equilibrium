@@ -8,11 +8,12 @@
  * the Onboarding stack mounted (signed in, no household yet) -- React
  * Navigation can't route to a screen that isn't part of the currently
  * rendered navigator tree. Opening the link signed-out, or already in a
- * household, silently does nothing. Revisit once push notification deep
- * links (plan section 5.1) need the same "pending route" problem solved.
+ * household, silently does nothing.
  *
- * Notification-tap deep links (`getInitialNotification` / `onNotificationOpenedApp`,
- * plan section 5.1) are added once `features/notifications` exists (Phase 5).
+ * Notification-tap deep links (plan section 5.1) hit the exact same
+ * "pending route" gap -- see `features/notifications/services/notificationLinking.ts`,
+ * which accepts it rather than building a general queued-navigation
+ * mechanism for either case in this phase.
  */
 import type {LinkingOptions} from '@react-navigation/native';
 

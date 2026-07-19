@@ -11,10 +11,16 @@ import {SignInScreen} from '@features/auth/components/SignInScreen';
 import {OnboardingNavigator} from '@features/onboarding/components/OnboardingNavigator';
 import {useOnboardingStore} from '@features/onboarding/onboardingStore';
 import {RealtimeChannelManager} from '@features/notifications/services/realtime';
+import {PushNotificationManager} from '@features/notifications/services/push';
+import {
+  handleInitialNotification,
+  subscribeToNotificationOpen,
+} from '@features/notifications/services/notificationLinking';
 import {colors} from '@theme/tokens';
 
 import {linking} from './linking';
 import {MainTabs} from './MainTabs';
+import {navigationRef} from './navigationRef';
 import type {RootStackParamList} from './types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -43,7 +49,9 @@ export function RootNavigator(): React.JSX.Element {
   const isOnboardingInProgress = useOnboardingStore(state => state.isInProgress);
   const queryClient = useQueryClient();
   const realtimeManagerRef = useRef<RealtimeChannelManager | null>(null);
+  const pushManagerRef = useRef<PushNotificationManager | null>(null);
   const householdId = household.data?.id;
+  const userId = session?.user.id;
 
   const isResolving = isSessionLoading || (Boolean(session) && household.isLoading);
 
@@ -65,8 +73,32 @@ export function RootNavigator(): React.JSX.Element {
     };
   }, [householdId, queryClient]);
 
+  // Push notifications (plan section 5.1): a push token belongs to the
+  // signed-in account, not the household, so this keys off `userId` rather
+  // than `householdId` above.
+  useEffect(() => {
+    if (!userId) {
+      return;
+    }
+    if (!pushManagerRef.current) {
+      pushManagerRef.current = new PushNotificationManager();
+    }
+    void pushManagerRef.current.start(userId);
+    return () => {
+      pushManagerRef.current?.stop();
+    };
+  }, [userId]);
+
+  // Notification-tap deep linking (plan section 5.1): registered once, for
+  // the app's whole lifetime, independent of session state -- see
+  // notificationLinking.ts for the known cold-start-while-signed-out limitation.
+  useEffect(() => {
+    void handleInitialNotification();
+    return subscribeToNotificationOpen();
+  }, []);
+
   return (
-    <NavigationContainer linking={linking}>
+    <NavigationContainer ref={navigationRef} linking={linking}>
       <Stack.Navigator screenOptions={{headerShown: false}}>
         {isResolving ? (
           <Stack.Screen name="Loading" component={LoadingScreen} />

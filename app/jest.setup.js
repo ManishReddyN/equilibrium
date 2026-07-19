@@ -101,3 +101,27 @@ jest.mock('react-native-image-picker', () => ({
   launchCamera: jest.fn().mockResolvedValue({didCancel: true}),
   launchImageLibrary: jest.fn().mockResolvedValue({didCancel: true}),
 }));
+
+jest.mock('@react-native-firebase/messaging', () => {
+  const instance = {
+    requestPermission: jest.fn().mockResolvedValue(1),
+    getToken: jest.fn().mockResolvedValue('fake-fcm-token'),
+    getAPNSToken: jest.fn().mockResolvedValue('fake-apns-token'),
+    onTokenRefresh: jest.fn(() => () => {}),
+    onMessage: jest.fn(() => () => {}),
+    onNotificationOpenedApp: jest.fn(() => () => {}),
+    getInitialNotification: jest.fn().mockResolvedValue(null),
+  };
+  const messaging = jest.fn(() => instance);
+  messaging.AuthorizationStatus = {NOT_DETERMINED: -1, DENIED: 0, AUTHORIZED: 1, PROVISIONAL: 2};
+  return {__esModule: true, default: messaging};
+});
+
+jest.mock('@notifee/react-native', () => ({
+  __esModule: true,
+  default: {
+    createChannel: jest.fn().mockResolvedValue('chores'),
+    displayNotification: jest.fn().mockResolvedValue('notification-id'),
+  },
+  AndroidImportance: {NONE: 0, MIN: 1, LOW: 2, DEFAULT: 3, HIGH: 4},
+}));

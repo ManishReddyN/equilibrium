@@ -35,8 +35,8 @@ the goal is Play Store submission, and this machine can't build/verify iOS regar
 | 1 | Core dependencies and native configuration | Done | `5290caf` |
 | 2 | Backend: Supabase schema, RLS, Prisma | Done | `ab18310` |
 | 3 | App architecture: folders, navigation, data layer, household profile engine | Done | `db7f224` |
-| 4 | Screens and interactions | Not started | — |
-| 5 | Push notifications and background workers | Not started | — |
+| 4 | Screens and interactions | Done | `f4365d1` |
+| 5 | Push notifications and background workers | Built; live secrets/on-device test pending your input | pending |
 | 6 | CI/CD: Fastlane, Match, store delivery (Android track) | Started (minimal CI only) | — |
 | 7 | Hardening, tests, docs | Not started | — |
 
@@ -124,6 +124,65 @@ the goal is Play Store submission, and this machine can't build/verify iOS regar
   constraints (see Phase 1 note); CI (`tsc`/`lint`/`jest`/Android debug build) is the
   verification path until a device is available.
 
+### Phase 4 detail (complete)
+
+- **Dashboard**: `SwipeToComplete` (Reanimated pan gesture + `swipeThresholds.ts` math) and a
+  Skia particle-based `CompletionCelebration`, `DailyProgressHeader`.
+- **Rotation**: `RotationCarousel` (Reanimated pan + `carouselMath.ts` snap/scale/opacity),
+  `CycleCard`, `HandlerChip`, and a `hasMakeupObligationForChore` parity helper
+  (`shared/utils/rotation.ts`) for the makeup badge on both the current and projected cycles.
+- **Ledger**: `BilateralBalanceSlider` (duo) and `StackedContributionBar` (shared_flat/
+  co_living, cohort-grouped), both driven by `balanceMath.ts`, plus a smooth
+  `equilibriumProgress` color-ramp helper in `shared/utils/points.ts`.
+- **Onboarding**: baseline photo capture on `DefinitionOfDoneScreen` via
+  `react-native-image-picker`'s `launchCamera`, uploaded immediately on capture (not gated on
+  "Next"), Camera permission wired on both platforms.
+- **Market**: `ListingComposerSheet` (hand-rolled bottom sheet — no such library/pattern
+  existed anywhere in the codebase) plus `fn_claim_listing`
+  (`supabase/migrations/0007_market_claim.sql`) wired into `MarketScreen`'s claim flow.
+- **Feedback**: `fn_retract_feedback` wired into `FeedbackScreen`'s retract flow.
+- **Verification**: `tsc` clean, `eslint` 0 errors/warnings, `jest` 11 suites/118 tests
+  passing, pgTAP 37/37 (up from 26) against the local Supabase stack. Gap-fill decisions
+  (bounty stepper increment, ledger `entry_type` rules, cohort ideal share, photo upload
+  timing, etc.) logged in `docs/DECISIONS.md`.
+
+### Phase 5 detail (built; live secrets + on-device verification pending your input)
+
+- **DB plumbing** (`supabase/migrations/0008_notifications_cron.sql`): `pg_net` + `pg_cron` +
+  `supabase_vault` extensions; a `notification_outbox` row trigger dispatches immediate-mode
+  notifications to the new `push-dispatch` edge function, and `pg_cron` schedules
+  `digest-worker` hourly and a new `fn_rotation_tick` (catch-up pass for shared_flat/co_living
+  chore skips, which don't auto-create a follow-up cycle the way completions/duo-makeup
+  already do) nightly, all invoked via `fn_invoke_edge_function` reading the project URL/
+  service-role key from Supabase Vault rather than a hardcoded secret. This function and
+  `fn_rotation_tick` are the first in this codebase with `revoke execute ... from public,
+  anon, authenticated` — they have no per-caller authorization, unlike every other RPC.
+- **Edge functions** (`supabase/functions/`): `push-dispatch` (FCM HTTP v1, OAuth2
+  service-account flow via `npm:jose`), `digest-worker` (aggregates undispatched digest-mode
+  outbox rows per recipient into one push — summarizes actual outbox categories, not the
+  plan's illustrative "completed/due tomorrow" text, since nothing populates those), and
+  `rotation-tick` (thin wrapper around `fn_rotation_tick`). All zod-validate/log
+  structured JSON/return AIP-193-style errors per the plan.
+- **Client** (`features/notifications/services/push.ts` + `notificationLinking.ts`):
+  `PushNotificationManager` (permission request, Android 13+ `POST_NOTIFICATIONS`, FCM token
+  obtain/upsert/refresh, two Notifee channels `chores`/`digest`, foreground message display)
+  started/stopped from `RootNavigator` keyed on the signed-in user id (a push token belongs to
+  the account, not the household) — same pattern as `RealtimeChannelManager`. Notification-tap
+  deep links route by category to the Home or Market tab (no per-item detail screen exists in
+  this app to route an id into, so the FCM `data` payload carries `{category, outboxId}`
+  rather than the plan's literal `{route, id}` shape) via a standalone `navigationRef`.
+- **Verification**: `tsc` clean, `eslint` 0 errors/warnings, `jest` 11 suites/118 tests passing
+  (added Firebase Messaging/Notifee mocks to `jest.setup.js`). Migration/pgTAP verification
+  relied on CI rather than the local Supabase stack this time — Docker Desktop wasn't
+  responsive on this machine when this phase landed; **flagging this explicitly** rather than
+  claiming local verification that didn't happen. Check the `backend` CI job for this push.
+- **Not done, needs your input** (see "Outstanding items" below): the real Firebase project
+  (still the Phase 1 placeholder `google-services.json`), the `FCM_SERVICE_ACCOUNT` secret,
+  and the Vault `project_url`/`service_role_key` secrets on the live project — all of which
+  block only the *live* push-delivery path, not the code itself. On-device delivery testing
+  (plan's Verification Gate 5.3) is also blocked, same as all along, by having no physical
+  device/emulator on this machine.
+
 ### Phase 6 detail (started early, minimal slice)
 
 - Added `.github/workflows/ci.yml` ahead of schedule (normally Phase 6) instead of building a
@@ -138,30 +197,55 @@ the goal is Play Store submission, and this machine can't build/verify iOS regar
   `jest.setup.js`, and a false-positive Prisma drift failure caused by CI's `npm install -g
   supabase` grabbing latest (newer GoTrue auth image, extra schema column) instead of the
   locally-pinned `2.108.0` — CI now pins the same version. Full detail in `docs/DECISIONS.md`.
+- **CI speed** (2026-07-19, per your request to cut CI time down): the Android debug build
+  step was the ~19min run's critical path (~17.5min of it) with no Gradle caching and native
+  modules compiled across all four `reactNativeArchitectures` ABIs for a build that only
+  proves compilability. Added `gradle/actions/setup-gradle@v4` (Gradle Home caching) and
+  restricted CI's `assembleDebug` to `-PreactNativeArchitectures=x86_64`; enabled
+  `org.gradle.parallel`/`org.gradle.caching`. Stayed on free-tier `ubuntu-latest`/`macos-15`
+  standard runners throughout, per your instruction — no paid/larger runner, no billing
+  change. First (cold-cache) run after the fix: **9m29s**, down from ~19min.
+- **Pre-existing CI bug found and fixed while verifying the above**: CI's actual `CI` workflow
+  (distinct from the unrelated `Dependabot Updates` workflow, whose own failures on dependency
+  PRs had been masking this) had been failing silently since the Phase 3 push (`a4be598`) — no
+  `.env` exists in CI, so anything importing `lib/supabase.ts` hit `lib/env.ts`'s zod parse of
+  `undefined` `SUPABASE_URL`/`SUPABASE_ANON_KEY`. Fixed with a placeholder-`.env` CI step, same
+  pattern as the existing placeholder Firebase config. Full detail in `docs/DECISIONS.md`.
 
 ## Outstanding items needing your input
 
 - **Firebase**: you're creating the project via CLI — run `firebase login` in your own
   terminal (same pattern as `supabase login`) whenever you're ready; I'll take it from there
-  to register the Android app and pull `google-services.json` + an FCM service-account JSON.
+  to register the Android app and pull `google-services.json` + an FCM service-account JSON
+  (`FCM_SERVICE_ACCOUNT`, needed by `push-dispatch`/`digest-worker` now that Phase 5 is built).
+- **Supabase Vault secrets** (new, Phase 5): once the project is linked and
+  `push-dispatch`/`digest-worker`/`rotation-tick` are deployed (`supabase functions deploy`),
+  run against the live project (dashboard SQL editor, not a migration file — see
+  `docs/RUNBOOK.md`): `select vault.create_secret('https://<ref>.supabase.co', 'project_url');`
+  and the same for `service_role_key` (from the dashboard's API settings). Without these,
+  `fn_invoke_edge_function` no-ops safely rather than erroring, so this isn't blocking anything
+  else — just the live push-delivery path.
 - **Android release keystore**: you asked me to auto-generate it (Phase 6) — will do via a
   Docker JDK container, then hand you the `.jks` file + passwords to store safely (never
   committed; see `.gitignore`).
 - **Google Play Console developer account**: needed only at actual submission time (not
-  blocking Phases 1/3/4/5). One-time $25 fee + Google identity verification — only you can do
-  this. Let me know once it exists so I can wire up the Play service-account JSON (`PLAY_JSON_KEY`).
+  blocking Phases 1/3/4/5/6-Android-track). One-time $25 fee + Google identity verification —
+  only you can do this. Let me know once it exists so I can wire up the Play service-account
+  JSON (`PLAY_JSON_KEY`).
 - **Store listing content** (privacy policy URL, app icon/feature graphic/screenshots,
   descriptions): not blocking near-term work. I can draft the privacy policy text and
   descriptions, and can host the privacy policy via GitHub Pages on this same repo if that
-  works for you — screenshots need a running build, so those come once Phase 4 has real
-  screens.
+  works for you.
 - Apple/App Store items (Developer account, Match certs repo) are **not** being pursued right
   now per your Play-Store-first framing.
 
 ## Next step
 
-Phase 4 (screens and interactions: SwipeToComplete gesture + Skia celebration on the
-dashboard, RotationCarousel physics, BilateralBalanceSlider/StackedContributionBar on the
-ledger, baseline photo capture via `react-native-image-picker`, market claim RPC + composer,
-feedback retract RPC) is starting now, continuing directly per the working agreement above —
-see `docs/roommate-app-execution-plan.md` for the full Phase 4 spec.
+Phase 5 is code-complete and pushed; watching CI's `backend` job to confirm the new
+`0008_notifications_cron.sql` migration and pgTAP suite are green there (local Docker wasn't
+responsive when this landed — see Phase 5 detail above). Once confirmed, continuing directly
+into Phase 6's Android track (Fastlane `android` lane, release keystore generation, signed
+release build + ProGuard/R8, `release-android.yml`) per the working agreement — see
+`docs/roommate-app-execution-plan.md` section 6 for the full spec. Play Store upload itself
+stays blocked on the Play Console account above; everything before that upload step is in
+scope now.
