@@ -31,6 +31,20 @@ jobs:
       - name: Lint (ESLint + no-emoji)
         run: npm run lint
 
+      - name: Write placeholder env file
+        # .env is gitignored (real one is per-developer, see .env.example) and react-native-dotenv
+        # inlines these as literal values at require-time via the `@env` alias -- `src/lib/env.ts`'s
+        # zod schema throws if they're undefined, and any test that transitively imports
+        # `lib/supabase.ts` (SessionProvider -> useHouseholdProfile, App.tsx, ...) does exactly
+        # that. Same placeholder-value pattern as the Firebase config below; a syntactically valid
+        # URL + non-empty string is all the schema requires, no real Supabase project needed since
+        # these tests never make a real network call.
+        run: |
+          cat > .env <<'EOF'
+          SUPABASE_URL=https://placeholder.supabase.co
+          SUPABASE_ANON_KEY=placeholder-anon-key
+          EOF
+
       - name: Unit tests
         run: npx jest --ci
 
