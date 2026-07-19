@@ -1,0 +1,40 @@
+# Phase 6 section 6.3. `bump`/`beta` lanes exactly as specified in
+# docs/roommate-app-execution-plan.md -- signing reads ANDROID_KEYSTORE_PATH/
+# _PASSWORD/ANDROID_KEY_ALIAS/_PASSWORD (Appendix A) via Gradle's
+# `android.injected.signing.*` properties rather than a checked-in
+# keystore.properties, so CI never needs the actual keystore file committed
+# (see docs/RUNBOOK.md for the keystore itself, still TODO(user) pending a
+# working local JDK/Docker to generate it -- see docs/DECISIONS.md).
+default_platform(:android)
+
+platform :android do
+  lane :bump do
+    increment_version_code(
+      gradle_file_path: "app/build.gradle",
+      version_code: google_play_track_version_codes(
+        track: "internal",
+        json_key_data: ENV["PLAY_JSON_KEY"],
+      ).max + 1,
+    )
+  end
+
+  lane :beta do
+    bump
+    gradle(
+      task: "bundle",
+      build_type: "Release",
+      properties: {
+        "android.injected.signing.store.file" => ENV["ANDROID_KEYSTORE_PATH"],
+        "android.injected.signing.store.password" => ENV["ANDROID_KEYSTORE_PASSWORD"],
+        "android.injected.signing.key.alias" => ENV["ANDROID_KEY_ALIAS"],
+        "android.injected.signing.key.password" => ENV["ANDROID_KEY_PASSWORD"],
+      },
+    )
+    upload_to_play_store(
+      track: "internal",
+      aab: "app/build/outputs/bundle/release/app-release.aab",
+      json_key_data: ENV["PLAY_JSON_KEY"],
+      release_status: "draft",
+    )
+  end
+end

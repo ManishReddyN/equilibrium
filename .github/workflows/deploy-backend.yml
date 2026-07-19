@@ -1,0 +1,48 @@
+name: Deploy Backend
+
+# Plan section 6.4 ("main, path filter supabase/**"): this repo's default branch is `master`
+# (see ci.yml), not `main` -- matched to the real branch name rather than the plan's literal
+# text. This is the one workflow in the repo that pushes schema changes to the LIVE Supabase
+# project (shared with the still-live `roomie` Next.js web app, see docs/RUNBOOK.md) -- it
+# guards on SUPABASE_ACCESS_TOKEN actually being set (via `if:`, not a hard failure) since that
+# secret doesn't exist yet and won't until you explicitly provision it, so this stays inert
+# rather than producing a red CI run on every supabase/** push in the meantime.
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'supabase/**'
+
+jobs:
+  deploy:
+    name: Push migrations + deploy edge functions
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for SUPABASE_ACCESS_TOKEN
+        id: check_token
+        run: echo "has_token=${{ secrets.SUPABASE_ACCESS_TOKEN != '' }}" >> "$GITHUB_OUTPUT"
+
+      - name: Install Supabase CLI
+        if: steps.check_token.outputs.has_token == 'true'
+        # Same pin as ci.yml's backend job, for the same reason (see docs/DECISIONS.md).
+        run: npm install -g supabase@2.108.0
+
+      - name: Link project
+        if: steps.check_token.outputs.has_token == 'true'
+        run: supabase link --project-ref zubxuqshcyniosmdztmw
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+
+      - name: Push database migrations
+        if: steps.check_token.outputs.has_token == 'true'
+        run: supabase db push --linked
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+
+      - name: Deploy edge functions
+        if: steps.check_token.outputs.has_token == 'true'
+        run: supabase functions deploy
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}

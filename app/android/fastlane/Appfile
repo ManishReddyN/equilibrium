@@ -1,0 +1,6 @@
+# package_name matches android/app/build.gradle's `namespace`/`applicationId`. json_key_data is
+# passed per-action in Fastfile instead of json_key_file here, since PLAY_JSON_KEY (plan
+# Appendix A) is the service account JSON's raw content as a CI secret, not a file on disk --
+# unlike FCM_SERVICE_ACCOUNT/APP_STORE_CONNECT_API_KEY_JSON, Appendix A doesn't mark this one
+# "base64", and Fastlane's json_key_data parameter expects raw JSON content either way.
+package_name("com.equilibrium.app")

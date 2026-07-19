@@ -58,7 +58,22 @@ react {
 /**
  * Set this to true to Run Proguard on Release builds to minify the Java bytecode.
  */
-def enableProguardInReleaseBuilds = false
+def enableProguardInReleaseBuilds = true
+
+/**
+ * Release signing (plan section 6.1/6.3): read from a gitignored keystore.properties for local
+ * release builds, same recipe React Native's own docs use. CI never has this file -- Fastlane's
+ * `beta` lane instead passes ANDROID_KEYSTORE_PATH/_PASSWORD/ANDROID_KEY_ALIAS/_PASSWORD
+ * (Appendix A secrets) as Gradle's `android.injected.signing.*` project properties, which AGP
+ * uses to override whatever signingConfigs.release resolves to (even empty, as it is in CI)
+ * without ever needing the keystore file or its passwords checked into git. See docs/RUNBOOK.md
+ * for the keystore itself.
+ */
+def keystorePropertiesFile = rootProject.file("keystore.properties")
+def keystoreProperties = new Properties()
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+}
 
 /**
  * The preferred build flavor of JavaScriptCore (JSC)
@@ -93,15 +108,21 @@ android {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
+        release {
+            if (keystoreProperties['storeFile']) {
+                storeFile file(keystoreProperties['storeFile'])
+                storePassword keystoreProperties['storePassword']
+                keyAlias keystoreProperties['keyAlias']
+                keyPassword keystoreProperties['keyPassword']
+            }
+        }
     }
     buildTypes {
         debug {
             signingConfig signingConfigs.debug
         }
         release {
-            // Caution! In production, you need to generate your own keystore file.
-            // see https://reactnative.dev/docs/signed-apk-android.
-            signingConfig signingConfigs.debug
+            signingConfig signingConfigs.release
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
         }

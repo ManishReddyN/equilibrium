@@ -1,0 +1,81 @@
+name: Release Android
+
+# Plan section 6.4: tag-triggered, separate from ci.yml so every regular push/PR stays on the
+# fast path -- this is the one place a real (minified, signed) release bundle gets built, and
+# only ever runs when a version is actually being cut.
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    name: Fastlane android beta
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: app/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-home-cache-cleanup: true
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+          bundler-cache: true
+          working-directory: app
+
+      # Unlike ci.yml's placeholder .env/google-services.json (fine for a debug build that only
+      # proves compilability), a real release bundle needs the real values -- none of these
+      # secrets exist yet (see docs/RUNBOOK.md); this workflow only ever fires on a `v*` tag
+      # push, so it stays inert rather than failing on every regular push in the meantime.
+      - name: Write production env file
+        run: |
+          cat > .env <<EOF
+          SUPABASE_URL=${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
+          EOF
+
+      - name: Write real Firebase config
+        run: echo "${{ secrets.GOOGLE_SERVICES_JSON }}" | base64 -d > android/app/google-services.json
+
+      - name: Write release keystore
+        run: echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > android/upload-keystore.jks
+
+      - name: Accept Android SDK licenses
+        run: yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null || true
+
+      - name: Install required Android SDK packages
+        run: |
+          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager \
+            "platforms;android-35" "build-tools;35.0.0" "platform-tools" > /dev/null
+
+      - name: Write local.properties
+        run: echo "sdk.dir=$ANDROID_HOME" > android/local.properties
+
+      - name: Fastlane android beta
+        working-directory: app/android
+        env:
+          ANDROID_KEYSTORE_PATH: ${{ github.workspace }}/app/android/upload-keystore.jks
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          PLAY_JSON_KEY: ${{ secrets.PLAY_JSON_KEY }}
+        run: bundle exec fastlane android beta

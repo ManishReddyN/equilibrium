@@ -37,7 +37,7 @@ the goal is Play Store submission, and this machine can't build/verify iOS regar
 | 3 | App architecture: folders, navigation, data layer, household profile engine | Done | `db7f224` |
 | 4 | Screens and interactions | Done | `f4365d1` |
 | 5 | Push notifications and background workers | Done (CI-verified); live secrets/on-device test pending your input | `2e1a2f2` |
-| 6 | CI/CD: Fastlane, Match, store delivery (Android track) | Started (minimal CI only) | — |
+| 6 | CI/CD: Fastlane, Match, store delivery (Android track) | Android track mostly built; keystore generation blocked (Docker/WSL2), everything else pending your secrets | pending |
 | 7 | Hardening, tests, docs | Not started | — |
 
 ### Phase 1 detail (complete)
@@ -211,6 +211,30 @@ the goal is Play Store submission, and this machine can't build/verify iOS regar
   `.env` exists in CI, so anything importing `lib/supabase.ts` hit `lib/env.ts`'s zod parse of
   `undefined` `SUPABASE_URL`/`SUPABASE_ANON_KEY`. Fixed with a placeholder-`.env` CI step, same
   pattern as the existing placeholder Firebase config. Full detail in `docs/DECISIONS.md`.
+- **Android track built** (2026-07-19): `app/Gemfile` now includes `fastlane`;
+  `app/android/fastlane/{Appfile,Fastfile}` implement the `bump`/`beta` lanes from plan section
+  6.3 verbatim. `android/app/build.gradle`'s `release` `signingConfig` now reads a gitignored
+  `android/keystore.properties` for local builds (template: `keystore.properties.example`) —
+  CI/Fastlane instead injects the keystore path/passwords as Gradle project properties, the
+  standard mechanism for never committing the keystore itself. `enableProguardInReleaseBuilds`
+  flipped to `true` with defensive keep rules for RN/Firebase/Reanimated/etc. in
+  `proguard-rules.pro`. Added `.github/workflows/release-android.yml` (tag `v*` → `bundle exec
+  fastlane android beta`) and `deploy-backend.yml` (push to `master` touching `supabase/**` →
+  `supabase db push --linked` + `functions deploy`, guarded on `SUPABASE_ACCESS_TOKEN`
+  actually being present so it stays inert rather than red-failing every backend push until
+  you provision that secret — **this is the one workflow that can push schema to the live,
+  shared-with-`roomie` Supabase project**, flagging it explicitly here).
+- **Blocked**: keystore generation needs a JDK; this machine has none locally, and the Docker
+  route broke mid-session — `wsl -l -v` shows the `docker-desktop` WSL2 distro stuck `Stopped`
+  even after killing and relaunching Docker Desktop.exe, so `docker info` just hangs rather
+  than the engine ever coming up. Looks like a WSL2/virtualization issue on this machine, not
+  something a retry fixes — see `docs/RUNBOOK.md`'s Android release keystore entry for what to
+  try. Nothing else in Phase 6 depends on this; nothing has been fabricated in its place.
+- **Not verified**: no release build (signed or otherwise) has actually been run anywhere yet
+  — `release-android.yml` is tag-triggered and needs secrets that don't exist (see
+  `docs/RUNBOOK.md`), and this machine can't run one locally without the JDK above. The plan's
+  own Verification Gate ("release build boots" on a device) is blocked the same way every
+  on-device gate has been all along.
 
 ## Outstanding items needing your input
 
@@ -225,9 +249,22 @@ the goal is Play Store submission, and this machine can't build/verify iOS regar
   and the same for `service_role_key` (from the dashboard's API settings). Without these,
   `fn_invoke_edge_function` no-ops safely rather than erroring, so this isn't blocking anything
   else — just the live push-delivery path.
-- **Android release keystore**: you asked me to auto-generate it (Phase 6) — will do via a
-  Docker JDK container, then hand you the `.jks` file + passwords to store safely (never
-  committed; see `.gitignore`).
+- **Android release keystore — blocked, needs a decision**: I planned to auto-generate this via
+  a Docker JDK container (you'd asked for that), but Docker Desktop broke mid-session: `wsl -l
+  -v` shows its `docker-desktop` WSL2 distro stuck `Stopped` even after I killed and relaunched
+  Docker Desktop.exe, so `docker info` hangs indefinitely rather than the engine coming up.
+  This looks like a WSL2/virtualization config issue on this machine, not something fixable by
+  retrying. Options: (1) you fix Docker Desktop (restart the machine, `wsl --update`, or
+  reinstall) and I'll generate the keystore once it's back; (2) you generate it yourself with
+  `keytool` (command in `docs/RUNBOOK.md`) if you have a JDK some other way; (3) tell me another
+  approach you'd prefer. Nothing else in Phase 6 depends on this.
+- **New CI secrets from Phase 5/6** (see `docs/RUNBOOK.md` for the full list and exact names):
+  `FCM_SERVICE_ACCOUNT` and two Supabase Vault secrets (Phase 5, push delivery), plus
+  `SUPABASE_URL`/`SUPABASE_ANON_KEY` (production), `GOOGLE_SERVICES_JSON`,
+  `ANDROID_KEYSTORE_BASE64`/`_PASSWORD`/`ANDROID_KEY_ALIAS`/`_PASSWORD`, `PLAY_JSON_KEY`, and
+  `SUPABASE_ACCESS_TOKEN` (Phase 6, `release-android.yml`/`deploy-backend.yml`). None of these
+  block further code work — the workflows that need them are either tag-triggered or
+  explicitly guarded to stay inert until you add them.
 - **Google Play Console developer account**: needed only at actual submission time (not
   blocking Phases 1/3/4/5/6-Android-track). One-time $25 fee + Google identity verification —
   only you can do this. Let me know once it exists so I can wire up the Play service-account
@@ -241,10 +278,8 @@ the goal is Play Store submission, and this machine can't build/verify iOS regar
 
 ## Next step
 
-Phase 5 is done and CI-confirmed (see above). Continuing directly into Phase 6's Android track
-(Fastlane `android` lane, release keystore generation, signed release build + ProGuard/R8,
-`release-android.yml`) per the working agreement — see `docs/roommate-app-execution-plan.md`
-section 6 for the full spec. Keystore generation needs a JDK (this machine has none locally;
-Docker was unresponsive as of Phase 5 — will retry or fall back to a CI-based approach if it
-stays down). Play Store upload itself stays blocked on the Play Console account above;
-everything before that upload step is in scope now.
+Phase 6's Android track is built except the keystore (blocked, see above — genuinely needs
+your input, not just more waiting). Continuing into Phase 7 (hardening, tests, docs) next per
+the working agreement, since it doesn't depend on the keystore either — see
+`docs/roommate-app-execution-plan.md` section 7. Play Store upload itself stays blocked on the
+Play Console account above regardless.
