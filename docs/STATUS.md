@@ -34,7 +34,7 @@ the goal is Play Store submission, and this machine can't build/verify iOS regar
 | 0 | Toolchain and repo scaffold | Done | `453c730` |
 | 1 | Core dependencies and native configuration | Done | `5290caf` |
 | 2 | Backend: Supabase schema, RLS, Prisma | Done | `ab18310` |
-| 3 | App architecture: folders, navigation, data layer, household profile engine | In progress | — |
+| 3 | App architecture: folders, navigation, data layer, household profile engine | Done | (pending commit) |
 | 4 | Screens and interactions | Not started | — |
 | 5 | Push notifications and background workers | Not started | — |
 | 6 | CI/CD: Fastlane, Match, store delivery (Android track) | Started (minimal CI only) | — |
@@ -66,6 +66,63 @@ the goal is Play Store submission, and this machine can't build/verify iOS regar
 - iOS `pod install` / `run-ios` / `run-android` device verification remain blocked locally per
   the existing environment constraints; Android build verification now happens in CI instead
   (see Phase 6 note below).
+
+### Phase 3 detail (complete)
+
+- **Folder structure** per plan section 3.1: `app/` (shell, providers, navigation),
+  `features/<name>/{components,services}` for `auth`, `onboarding`, `dashboard`, `rotation`,
+  `ledger`, `market`, `feedback`, `household`, `notifications`, plus cross-cutting `shared/`
+  (components, hooks, utils), `lib/` (Supabase client, SQLite persister, query keys, env, DB
+  types), and `theme/` (design tokens, icons). `household` was added beyond the plan's literal
+  folder list (needed a home for the sign-out control and household-settings screen); see
+  `docs/DECISIONS.md`.
+- **Navigation** (`app/src/app/navigation/`): typed `RootStackParamList`
+  (`Loading | Auth | Onboarding | Main`) and `MainTabParamList`, deep-link config
+  (`linking.ts`), a bottom-tab `MainTabs` (Home/Rotation/Ledger/Household always present;
+  Market/Feedback conditional on household profile — `shared_flat`/`duo` respectively) with
+  stable hoisted icon components, and `RootNavigator` implementing the AuthGate: `Loading` →
+  `Auth` (sign-in, OTP) → `Onboarding` (no household yet, or `onboardingStore.isInProgress`) →
+  `Main`. `RealtimeChannelManager` (one Supabase realtime channel per household) is started/
+  stopped from a `useEffect` keyed on the resolved household id.
+- **Offline-first data layer**: `QueryProvider` wraps `PersistQueryClientProvider` around a
+  `QueryClient` (30s `staleTime`, 7-day `gcTime`) and `sqliteQueryPersister`
+  (`lib/db/sqlite.ts`), a hand-rolled TanStack Query persister backed by
+  `react-native-quick-sqlite` (single-row upsert/select/delete keyed by a constant, `buster`
+  tied to `appVersion` so schema changes auto-invalidate the cache). `lib/queryKeys.ts`
+  centralizes every query key factory used across features.
+- **Household profile engine** (`shared/hooks/useHouseholdProfile.ts`): derives
+  `duo` (2 members) / `shared_flat` (3-5) / `co_living` (6+, with `cohortIndex` for sub-grouping,
+  defaulting to 0 when unset) from household member count — drives the conditional Market/
+  Feedback tabs and other profile-gated UI (`ProfileGate`).
+  `SessionProvider` (Supabase auth session + `onAuthStateChange`, MMKV-backed storage adapter)
+  composes the whole stack in the new `app/src/app/App.tsx`, replacing Phase 1's `ProbeScreen`.
+- **Feature screens/services** (functional, not yet polished per Phase 4's interaction spec):
+  sign-in (OTP), full onboarding flow (welcome → create-or-join → household basics → chore
+  setup → definition-of-done → invite share / join-by-code), dashboard, rotation, ledger,
+  market, feedback, household settings — each with a services layer wrapping the relevant
+  Supabase queries/RPCs from Phase 2's schema.
+- **ESLint feature isolation**: dynamically-generated per-feature `no-restricted-imports`
+  overrides in `app/.eslintrc.js` banning the `@features/<other>/*` alias from within any
+  other feature's files (real violation caught and fixed during this phase — see
+  `docs/DECISIONS.md`). Also added `no-void` tuning (`allowAsStatement: true`) to resolve a
+  conflict with `@typescript-eslint/no-floating-promises`'s required `void` markers.
+  `HomeTabIcon`-style stable component hoisting fixed `react/no-unstable-nested-components`
+  in `MainTabs.tsx` for real, rather than suppressing it.
+- **Tests**: Jest unit tests added for the SQLite persister round-trip (against a new
+  stateful fake `react-native-quick-sqlite` mock), `queryKeys` uniqueness, and the household
+  profile engine's boundary behavior (2/3/5/6/20-member households, cohortIndex default).
+  `App.test.tsx` updated to render the real provider stack + `RootNavigator` instead of the
+  deleted `ProbeScreen`; needed a `@react-native-clipboard/clipboard` mock since the render
+  tree now reaches `InviteShareScreen`.
+- **Verification**: `tsc --noEmit` clean, `npx eslint .` 0 errors/0 warnings, `jest` 4 suites /
+  17 tests passing, `npm run lint` (eslint + no-emoji check) clean. Several gap-fill decisions
+  (OTP auth choice, `Loading` route, `p_proof_path` placeholder, baseline photo capture
+  deferred to Phase 4, market-claim/feedback-retract RPC gaps, the TS same-basename `.d.ts`
+  exclusion gotcha, the lucide-react-native unexported-types workaround, the missing
+  `@types/jest` convention) are logged in `docs/DECISIONS.md`.
+- iOS/Android on-device verification remains blocked locally per the existing environment
+  constraints (see Phase 1 note); CI (`tsc`/`lint`/`jest`/Android debug build) is the
+  verification path until a device is available.
 
 ### Phase 6 detail (started early, minimal slice)
 
@@ -103,6 +160,8 @@ the goal is Play Store submission, and this machine can't build/verify iOS regar
 
 ## Next step
 
-Phase 3 (app architecture: folder hierarchy, navigation, Supabase client, offline-first data
-layer, household profile engine) is starting now — see
-`docs/roommate-app-execution-plan.md` lines 513-594.
+Phase 4 (screens and interactions: SwipeToComplete gesture + Skia celebration on the
+dashboard, RotationCarousel physics, BilateralBalanceSlider/StackedContributionBar on the
+ledger, baseline photo capture via `react-native-image-picker`, market claim RPC + composer,
+feedback retract RPC) is starting now, continuing directly per the working agreement above —
+see `docs/roommate-app-execution-plan.md` for the full Phase 4 spec.
