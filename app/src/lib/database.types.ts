@@ -409,6 +409,10 @@ export interface Database {
       };
     };
     Functions: {
+      fn_claim_listing: {
+        Args: {p_listing_id: string};
+        Returns: undefined;
+      };
       fn_complete_assignment: {
         Args: {p_assignment_id: string; p_proof_path: string};
         Returns: undefined;
@@ -435,6 +439,10 @@ export interface Database {
       fn_next_handler: {
         Args: {p_chore_id: string};
         Returns: string;
+      };
+      fn_retract_feedback: {
+        Args: {p_feedback_id: string};
+        Returns: undefined;
       };
       fn_skip_assignment: {
         Args: {p_assignment_id: string};

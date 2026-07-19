@@ -14,4 +14,14 @@ export {
   ArrowLeftRight,
   Repeat2,
   Clock,
+  // Phase 4 additions: baseline photo capture (onboarding), feedback retract
+  // action, market composer bottom sheet.
+  Camera,
+  Lock,
+  Trash2,
+  X,
+  Plus,
+  PlusCircle,
+  MinusCircle,
+  XCircle,
 } from 'lucide-react-native';

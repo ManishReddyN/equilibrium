@@ -4,20 +4,18 @@ import {Text, View} from 'react-native';
 import {Screen} from '@shared/components/Screen';
 import {Card} from '@shared/components/Card';
 import {SectionHeader} from '@shared/components/SectionHeader';
-import {Avatar} from '@shared/components/Avatar';
 import {EmptyState} from '@shared/components/EmptyState';
 import {useHousehold, useMembers} from '@shared/hooks/useHousehold';
+import {useHouseholdProfile} from '@shared/hooks/useHouseholdProfile';
 import {formatDateTime} from '@shared/utils/dates';
-import {
-  formatShare,
-  formatSignedPoints,
-  idealShareForMemberCount,
-  isOutOfEquilibrium,
-} from '@shared/utils/points';
-import {CheckCircle2, AlertTriangle, ArrowLeftRight, Scale} from '@theme/icons';
+import {formatSignedPoints, idealShareForMemberCount} from '@shared/utils/points';
+import {CheckCircle2, AlertTriangle, ArrowLeftRight} from '@theme/icons';
 import type {Database} from '@lib/database.types';
 
 import {useEquilibrium, useLedgerHistory} from '../services/ledger';
+import {cohortSegments} from '../utils/balanceMath';
+import {BilateralBalanceSlider} from './BilateralBalanceSlider';
+import {StackedContributionBar, type ContributionSegment} from './StackedContributionBar';
 
 type LedgerEntryType = Database['public']['Enums']['ledger_entry_type'];
 
@@ -37,54 +35,79 @@ const ENTRY_ICON: Record<LedgerEntryType, typeof CheckCircle2> = {
 };
 
 /**
- * Ledger tab -- Phase 3 renders a plain share list + history (real data).
- * Phase 4.3 branches on the profile engine to swap this for
- * `BilateralBalanceSlider` (duo) / `StackedContributionBar` (3+), both
- * Reanimated-driven; the data hooks here carry over unchanged.
+ * Ledger tab (plan section 4.3). Branches on the profile engine: `duo`
+ * renders `BilateralBalanceSlider`, `shared_flat` renders
+ * `StackedContributionBar` with one segment per member, `co_living` renders
+ * the same bar grouped into per-cohort segments (`../utils/balanceMath.ts#cohortSegments`).
+ * Both visuals are Reanimated-driven; the data hooks below carry over
+ * unchanged from Phase 3.
  */
 export function LedgerScreen(): React.JSX.Element {
   const household = useHousehold();
   const members = useMembers();
+  const {data: profile} = useHouseholdProfile();
   const equilibrium = useEquilibrium(household.data?.id);
   const history = useLedgerHistory();
 
-  const memberNameById = new Map((members.data ?? []).map(member => [member.id, member.full_name]));
-  const idealShare = idealShareForMemberCount((members.data ?? []).length);
+  const memberRows = members.data ?? [];
+  const memberNameById = new Map(memberRows.map(member => [member.id, member.full_name]));
+  const idealShare = idealShareForMemberCount(memberRows.length);
   const tolerance = household.data?.equilibrium_tolerance ?? 10;
+  // A member with no ledger activity yet (brand-new household) previews at
+  // the ideal even split rather than 0, so the visuals don't open looking
+  // maximally out-of-equilibrium before any chore has ever been completed.
+  const shareById = new Map((equilibrium.data ?? []).map(entry => [entry.userId, entry.share]));
+  const shareFor = (memberId: string): number => shareById.get(memberId) ?? idealShare;
+
+  const hasEquilibriumData = memberRows.length > 0 && profile !== undefined;
+  const memberA = memberRows[0];
+  const memberB = memberRows[1];
 
   return (
     <Screen scrollable>
       <Text className="pt-4 font-sans-bold text-2xl text-ink">Equilibrium</Text>
 
       <SectionHeader title="Contribution share" />
-      <Card className="gap-3">
-        {(equilibrium.data ?? []).length === 0 ? (
+      {!hasEquilibriumData ? (
+        <Card className="gap-3">
           <Text className="font-sans text-sm text-ink-muted">No activity yet.</Text>
-        ) : (
-          (equilibrium.data ?? []).map(entry => {
-            const outOfEquilibrium = isOutOfEquilibrium(entry.share, idealShare, tolerance);
-            return (
-              <View key={entry.userId} className="flex-row items-center gap-3">
-                <Avatar name={memberNameById.get(entry.userId) ?? '?'} size={32} />
-                <Text className="flex-1 font-sans-medium text-base text-ink">
-                  {memberNameById.get(entry.userId) ?? 'Member'}
-                </Text>
-                <View className="flex-row items-center gap-1">
-                  {outOfEquilibrium ? (
-                    <Scale size={16} strokeWidth={1.75} color="#D97706" />
-                  ) : null}
-                  <Text
-                    className={`font-sans-semibold text-base ${
-                      outOfEquilibrium ? 'text-warn' : 'text-ink'
-                    }`}>
-                    {formatShare(entry.share)}
-                  </Text>
-                </View>
-              </View>
-            );
-          })
-        )}
-      </Card>
+        </Card>
+      ) : profile?.kind === 'duo' && memberA && memberB ? (
+        <Card>
+          <BilateralBalanceSlider
+            memberAName={memberA.full_name}
+            memberBName={memberB.full_name}
+            memberAShare={shareFor(memberA.id)}
+            tolerancePercent={tolerance}
+          />
+        </Card>
+      ) : profile?.kind === 'co_living' ? (
+        <Card>
+          <StackedContributionBar
+            segments={cohortSegments(
+              memberRows.map(member => ({
+                id: member.id,
+                name: member.full_name,
+                share: shareFor(member.id),
+                cohortIndex: member.cohort_index,
+              })),
+            )}
+            tolerancePercent={tolerance}
+          />
+        </Card>
+      ) : (
+        <Card>
+          <StackedContributionBar
+            segments={memberRows.map<ContributionSegment>(member => ({
+              key: member.id,
+              label: member.full_name,
+              share: shareFor(member.id),
+              idealShare,
+            }))}
+            tolerancePercent={tolerance}
+          />
+        </Card>
+      )}
 
       <SectionHeader title="History" />
       {(history.data ?? []).length === 0 && !history.isLoading ? (

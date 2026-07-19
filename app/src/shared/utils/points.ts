@@ -40,3 +40,24 @@ export function isOutOfEquilibrium(
 ): boolean {
   return Math.abs(share - idealShare) > tolerancePercent;
 }
+
+/**
+ * 0..1 "how far out of equilibrium" progress, for `BilateralBalanceSlider` /
+ * `StackedContributionBar`'s `interpolateColor` teal->amber transition (plan
+ * section 4.3). 0 up to and including the tolerance boundary (still teal),
+ * ramping to 1 at twice the tolerance's deviation (fully amber) -- a smooth
+ * transition rather than `isOutOfEquilibrium`'s hard boolean cutoff, so the
+ * tint eases in instead of snapping.
+ */
+export function equilibriumProgress(
+  share: number,
+  idealShare: number,
+  tolerancePercent: number,
+): number {
+  if (tolerancePercent <= 0) {
+    return share === idealShare ? 0 : 1;
+  }
+  const deviation = Math.abs(share - idealShare);
+  const progress = (deviation - tolerancePercent) / tolerancePercent;
+  return Math.max(0, Math.min(1, progress));
+}

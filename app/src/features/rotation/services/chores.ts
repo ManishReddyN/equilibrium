@@ -2,6 +2,7 @@ import {useQuery, type UseQueryResult} from '@tanstack/react-query';
 
 import {supabase} from '@lib/supabase';
 import {queryKeys} from '@lib/queryKeys';
+import type {MakeupObligation} from '@shared/utils/rotation';
 
 export interface ChoreWithHandler {
   id: string;
@@ -63,6 +64,34 @@ export function useChores(): UseQueryResult<ChoreWithHandler[]> {
           currentHandlerName: handler?.name ?? null,
         };
       });
+    },
+  });
+}
+
+/**
+ * `['assignments','makeup']` -- every pending/in_progress `is_debit_makeup`
+ * assignment across the whole household, unscoped to any one chore (mirrors
+ * `fn_next_handler`'s own unscoped query, supabase/migrations/0004_functions_and_triggers.sql
+ * lines ~109-176). Feeds `shared/utils/rotation.ts`'s `resolveNextHandler` /
+ * `projectUpcomingHandlers` / `hasMakeupObligationForChore` for
+ * `RotationCarousel`'s client-side cycle preview (plan section 4.2).
+ */
+export function useMakeupObligations(): UseQueryResult<MakeupObligation[]> {
+  return useQuery({
+    queryKey: queryKeys.assignmentsMakeup(),
+    queryFn: async (): Promise<MakeupObligation[]> => {
+      const {data, error} = await supabase
+        .from('assignments')
+        .select('chore_id, current_handler_id')
+        .in('status', ['pending', 'in_progress'])
+        .eq('is_debit_makeup', true);
+      if (error) {
+        throw error;
+      }
+      return (data ?? []).map(row => ({
+        choreId: row.chore_id,
+        handlerId: row.current_handler_id,
+      }));
     },
   });
 }

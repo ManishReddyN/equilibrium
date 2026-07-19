@@ -1,14 +1,16 @@
-import React, {useMemo} from 'react';
+import React, {useMemo, useRef, useState} from 'react';
 import {Alert, Text, View} from 'react-native';
+import {useNavigation} from '@react-navigation/native';
+import type {BottomTabNavigationProp} from '@react-navigation/bottom-tabs';
 
 import {Screen} from '@shared/components/Screen';
-import {Card} from '@shared/components/Card';
 import {ListRow} from '@shared/components/ListRow';
 import {SectionHeader} from '@shared/components/SectionHeader';
 import {EmptyState} from '@shared/components/EmptyState';
-import {Button} from '@shared/components/Button';
+import {useHouseholdProfile} from '@shared/hooks/useHouseholdProfile';
 import {bucketDueDate, formatDueDate, type DueBucket} from '@shared/utils/dates';
 import {CheckCircle2, Repeat2} from '@theme/icons';
+import type {MainTabParamList} from '@app/navigation/types';
 
 import {
   useActiveAssignments,
@@ -16,6 +18,9 @@ import {
   useSkipAssignment,
   type ActiveAssignment,
 } from '../services/assignments';
+import {SwipeToComplete} from './SwipeToComplete';
+import {CompletionCelebration} from './CompletionCelebration';
+import {DailyProgressHeader} from './DailyProgressHeader';
 
 const SECTION_ORDER: {bucket: DueBucket; label: string}[] = [
   {bucket: 'overdue', label: 'Overdue'},
@@ -24,15 +29,24 @@ const SECTION_ORDER: {bucket: DueBucket; label: string}[] = [
 ];
 
 /**
- * Home tab -- Phase 3 ships a plain, fully functional list (real data, real
- * complete/skip mutations); Phase 4.1 replaces the trailing buttons with
- * `SwipeToComplete` (Reanimated gesture) and adds `CompletionCelebration`
- * (Skia) per the execution plan, without touching the data layer here.
+ * Home tab (plan section 4.1). Data layer (`useActiveAssignments` /
+ * `useCompleteAssignment` / `useSkipAssignment`) is unchanged from Phase 3;
+ * this rewrite adds the `SwipeToComplete` gesture, the `CompletionCelebration`
+ * Skia burst (mounted only when the last assignment due *today* completes),
+ * and a `DailyProgressHeader` summarizing today's remaining count.
  */
 export function DashboardScreen(): React.JSX.Element {
   const assignments = useActiveAssignments();
   const completeAssignment = useCompleteAssignment();
   const skipAssignment = useSkipAssignment();
+  const {data: profile} = useHouseholdProfile();
+  const navigation = useNavigation<BottomTabNavigationProp<MainTabParamList>>();
+
+  const [showCelebration, setShowCelebration] = useState(false);
+  // Captured once, the first time today's assignments are known, so
+  // `DailyProgressHeader` can show "X of Y done today" without a separate
+  // history query -- see DailyProgressHeader.tsx.
+  const initialTodayCountRef = useRef<number | null>(null);
 
   const sections = useMemo(() => {
     const now = new Date();
@@ -43,6 +57,12 @@ export function DashboardScreen(): React.JSX.Element {
     }
     return grouped;
   }, [assignments.data]);
+
+  if (assignments.data && initialTodayCountRef.current === null) {
+    initialTodayCountRef.current = sections.today.length;
+  }
+  const totalToday = initialTodayCountRef.current ?? sections.today.length;
+  const completedToday = Math.max(0, totalToday - sections.today.length);
 
   const hasAny = (assignments.data ?? []).length > 0;
 
@@ -61,9 +81,23 @@ export function DashboardScreen(): React.JSX.Element {
     );
   }
 
+  function handleComplete(assignment: ActiveAssignment): void {
+    const bucket = bucketDueDate(new Date(assignment.targetCompletionDate));
+    const remainingToday = sections.today.filter(row => row.id !== assignment.id);
+    if (bucket === 'today' && remainingToday.length === 0) {
+      setShowCelebration(true);
+    }
+    completeAssignment.mutate({assignmentId: assignment.id});
+  }
+
+  function handleListOnMarket(): void {
+    navigation.navigate('Market');
+  }
+
   return (
     <Screen scrollable>
       <Text className="pt-4 font-sans-bold text-2xl text-ink">Today</Text>
+      <DailyProgressHeader completedToday={completedToday} totalToday={totalToday} />
 
       {!hasAny && !assignments.isLoading ? (
         <EmptyState
@@ -81,47 +115,39 @@ export function DashboardScreen(): React.JSX.Element {
         return (
           <View key={bucket}>
             <SectionHeader title={label} />
-            <Card className="gap-1">
-              {rows.map((assignment, index) => (
-                <View
+            <View className="gap-2 pb-2">
+              {rows.map(assignment => (
+                <SwipeToComplete
                   key={assignment.id}
-                  className={index > 0 ? 'border-t border-border pt-1' : ''}>
-                  <ListRow
-                    title={assignment.choreTitle}
-                    subtitle={
-                      assignment.isDebitMakeup
-                        ? 'Makeup turn from skipped cycle'
-                        : formatDueDate(new Date(assignment.targetCompletionDate))
-                    }
-                    leading={
-                      assignment.isDebitMakeup ? (
-                        <Repeat2 size={20} strokeWidth={1.75} color="#64748B" />
-                      ) : undefined
-                    }
-                    trailing={
-                      <View className="flex-row gap-2">
-                        <Button
-                          label="Skip"
-                          variant="secondary"
-                          onPress={() => confirmSkip(assignment.id)}
-                          disabled={skipAssignment.isPending}
-                          className="px-3 py-2"
-                        />
-                        <Button
-                          label="Done"
-                          onPress={() => completeAssignment.mutate({assignmentId: assignment.id})}
-                          disabled={completeAssignment.isPending}
-                          className="px-3 py-2"
-                        />
-                      </View>
-                    }
-                  />
-                </View>
+                  onComplete={() => handleComplete(assignment)}
+                  onSkip={() => confirmSkip(assignment.id)}
+                  onListOnMarket={profile?.kind === 'shared_flat' ? handleListOnMarket : undefined}
+                  disabled={completeAssignment.isPending || skipAssignment.isPending}>
+                  <View className="px-4 py-3">
+                    <ListRow
+                      title={assignment.choreTitle}
+                      subtitle={
+                        assignment.isDebitMakeup
+                          ? 'Makeup turn from skipped cycle'
+                          : formatDueDate(new Date(assignment.targetCompletionDate))
+                      }
+                      leading={
+                        assignment.isDebitMakeup ? (
+                          <Repeat2 size={20} strokeWidth={1.75} color="#64748B" />
+                        ) : undefined
+                      }
+                    />
+                  </View>
+                </SwipeToComplete>
               ))}
-            </Card>
+            </View>
           </View>
         );
       })}
+
+      {showCelebration ? (
+        <CompletionCelebration onDone={() => setShowCelebration(false)} />
+      ) : null}
     </Screen>
   );
 }

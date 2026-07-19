@@ -94,9 +94,26 @@ export function useSendFeedback(): ReturnType<
   });
 }
 
-// NOTE: "Retract allowed while status = 'queued'" (plan section 4.5) needs a
-// dedicated RPC -- feedback_queue only has SELECT/INSERT grants (see
-// supabase/migrations/0005_rls.sql), no UPDATE, so the client cannot flip
-// `status` itself. Add `fn_retract_feedback` in the same Phase 4 migration
-// that adds `fn_claim_listing` for the market feature; tracked in
-// docs/DECISIONS.md.
+/**
+ * "Retract allowed while status = 'queued'" (plan section 4.5), via
+ * `fn_retract_feedback` (`supabase/migrations/0007_market_claim.sql`) --
+ * `feedback_queue` only has SELECT/INSERT grants, no UPDATE, so this RPC is
+ * the only way to flip `status`. The RPC itself re-checks both the author
+ * and the `queued` status server-side (raises otherwise), so the client-side
+ * `status === 'queued'` check gating the button in `FeedbackScreen` is only
+ * a UX nicety, not the real enforcement.
+ */
+export function useRetractFeedback(): ReturnType<typeof useMutation<void, Error, {feedbackId: string}>> {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({feedbackId}: {feedbackId: string}): Promise<void> => {
+      const {error} = await supabase.rpc('fn_retract_feedback', {p_feedback_id: feedbackId});
+      if (error) {
+        throw error;
+      }
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({queryKey: queryKeys.feedbackSent()});
+    },
+  });
+}

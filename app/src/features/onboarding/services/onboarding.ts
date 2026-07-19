@@ -3,10 +3,14 @@ import {useMutation, useQuery, useQueryClient, type UseQueryResult} from '@tanst
 import {supabase} from '@lib/supabase';
 import {queryKeys} from '@lib/queryKeys';
 
+import {baselinePhotoStoragePath} from '../utils/baselinePhoto';
+
 export interface DraftChoreRow {
   id: string;
   title: string;
   definitionOfDone: string;
+  /** Null until a baseline photo has been uploaded; immutable thereafter (server-enforced, see `useUploadBaselinePhoto`). */
+  baselinePhotoPath: string | null;
 }
 
 /**
@@ -22,7 +26,7 @@ export function useDraftChores(householdId: string): UseQueryResult<DraftChoreRo
     queryFn: async (): Promise<DraftChoreRow[]> => {
       const {data, error} = await supabase
         .from('chores')
-        .select('id, title, definition_of_done')
+        .select('id, title, definition_of_done, baseline_photo_path')
         .eq('household_id', householdId)
         .order('created_at', {ascending: true});
       if (error) {
@@ -32,6 +36,7 @@ export function useDraftChores(householdId: string): UseQueryResult<DraftChoreRo
         id: row.id,
         title: row.title,
         definitionOfDone: row.definition_of_done,
+        baselinePhotoPath: row.baseline_photo_path,
       }));
     },
   });
@@ -102,13 +107,7 @@ export function useAddChores(): ReturnType<
   });
 }
 
-/**
- * Saves each chore's Definition of Done text. Baseline photo capture (plan
- * section 4.4: `react-native-image-picker`, upload to
- * `baseline-photos/{household_id}/{chore_id}.jpg`, "Baseline locked" UI) is
- * deferred to Phase 4 -- `baseline_photo_path` stays null until then. See
- * docs/DECISIONS.md.
- */
+/** Saves each chore's Definition of Done text. */
 export function useSaveDefinitionsOfDone(): ReturnType<
   typeof useMutation<void, Error, {choreId: string; definitionOfDone: string}[]>
 > {
@@ -124,6 +123,58 @@ export function useSaveDefinitionsOfDone(): ReturnType<
       if (failed?.error) {
         throw failed.error;
       }
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({queryKey: queryKeys.chores()});
+    },
+  });
+}
+
+export interface UploadBaselinePhotoInput {
+  householdId: string;
+  choreId: string;
+  /** Local `file://`/`content://` uri from `launchCamera`'s resolved asset. */
+  uri: string;
+  contentType: string;
+}
+
+/**
+ * Uploads a chore's baseline photo (plan section 4.4) to the private
+ * `baseline-photos` bucket at the `{household_id}/{chore_id}.jpg` path the
+ * `baseline_photos_insert`/`_select` RLS policies expect
+ * (`supabase/migrations/0006_storage_and_realtime.sql`), then records the
+ * path on the chore row. The storage policy itself denies a second INSERT to
+ * the same path, and there is no UPDATE/DELETE policy for this bucket -- so
+ * re-running this for an already-uploaded chore fails server-side rather than
+ * silently overwriting the baseline; the "Baseline locked" UI in
+ * `DefinitionOfDoneScreen` is what actually prevents that attempt client-side.
+ * `fetch` + `.blob()` is the standard RN pattern for turning a local picker
+ * uri into an uploadable body -- RN's bundled fetch/Blob polyfill supports
+ * reading `file://`/`content://` uris, no extra filesystem dependency needed.
+ */
+export function useUploadBaselinePhoto(): ReturnType<
+  typeof useMutation<string, Error, UploadBaselinePhotoInput>
+> {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({householdId, choreId, uri, contentType}: UploadBaselinePhotoInput): Promise<string> => {
+      const path = baselinePhotoStoragePath(householdId, choreId);
+      const response = await fetch(uri);
+      const blob = await response.blob();
+      const {error: uploadError} = await supabase.storage
+        .from('baseline-photos')
+        .upload(path, blob, {contentType, upsert: false});
+      if (uploadError) {
+        throw uploadError;
+      }
+      const {error: updateError} = await supabase
+        .from('chores')
+        .update({baseline_photo_path: path})
+        .eq('id', choreId);
+      if (updateError) {
+        throw updateError;
+      }
+      return path;
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({queryKey: queryKeys.chores()});

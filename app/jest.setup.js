@@ -75,9 +75,29 @@ jest.mock('@react-native-community/netinfo', () =>
 jest.mock('@shopify/react-native-skia', () => ({
   Canvas: 'Canvas',
   Circle: 'Circle',
+  RoundedRect: 'RoundedRect',
+  Group: 'Group',
 }));
 
 jest.mock('@react-native-clipboard/clipboard', () => ({
   getString: jest.fn().mockResolvedValue(''),
   setString: jest.fn(),
+}));
+
+jest.mock('react-native-haptic-feedback', () => ({
+  __esModule: true,
+  default: {trigger: jest.fn()},
+  trigger: jest.fn(),
+  HapticFeedbackTypes: {
+    selection: 'selection',
+    impactLight: 'impactLight',
+    impactMedium: 'impactMedium',
+    impactHeavy: 'impactHeavy',
+    notificationSuccess: 'notificationSuccess',
+  },
+}));
+
+jest.mock('react-native-image-picker', () => ({
+  launchCamera: jest.fn().mockResolvedValue({didCancel: true}),
+  launchImageLibrary: jest.fn().mockResolvedValue({didCancel: true}),
 }));

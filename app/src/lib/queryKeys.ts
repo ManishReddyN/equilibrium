@@ -11,9 +11,11 @@ export const queryKeys = {
   chores: () => ['chores'] as const,
   assignmentsActive: () => ['assignments', 'active'] as const,
   assignmentsHistory: () => ['assignments', 'history'] as const,
+  assignmentsMakeup: () => ['assignments', 'makeup'] as const,
   ledger: (windowDays: number = 30) => ['ledger', {window: windowDays}] as const,
   equilibrium: () => ['equilibrium'] as const,
   marketOpen: () => ['market', 'open'] as const,
+  marketMine: () => ['market', 'mine'] as const,
   feedbackInbox: () => ['feedback', 'inbox'] as const,
   feedbackSent: () => ['feedback', 'sent'] as const,
 };

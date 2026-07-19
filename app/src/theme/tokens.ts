@@ -19,6 +19,20 @@ export const radii = {
   control: 12,
 } as const;
 
+/**
+ * `CompletionCelebration`'s particle burst (plan section 4.1: "120 particles,
+ * teal/sage palette... no confetti emoji imagery -- abstract circles and
+ * rounded rects only"). Teal shades from `colors.primary` plus two sage-green
+ * accents for contrast against the canvas background.
+ */
+export const celebrationPalette = [
+  '#0D9488', // primary teal
+  '#2DD4BF', // lighter teal
+  '#5EEAD4', // pale teal
+  '#84A98C', // sage
+  '#52796F', // deep sage
+] as const;
+
 export const fontFamily = {
   sans: 'Nunito-Regular',
   sansMedium: 'Nunito-Medium',

@@ -1,5 +1,5 @@
 begin;
-select plan(26);
+select plan(37);
 
 -- ============================================================
 -- Fixtures: two households (H1 duo, H2 shared_flat), three users
@@ -17,14 +17,18 @@ insert into auth.users (
 ) values
   ('00000000-0000-0000-0000-000000000000', 'f2000000-0000-0000-0000-000000000001', 'authenticated', 'authenticated', 'u1@rlstest.local', crypt('x', gen_salt('bf')), now(), '{}', '{}', now(), now(), '', '', '', ''),
   ('00000000-0000-0000-0000-000000000000', 'f2000000-0000-0000-0000-000000000002', 'authenticated', 'authenticated', 'u2@rlstest.local', crypt('x', gen_salt('bf')), now(), '{}', '{}', now(), now(), '', '', '', ''),
-  ('00000000-0000-0000-0000-000000000000', 'f2000000-0000-0000-0000-000000000003', 'authenticated', 'authenticated', 'u3@rlstest.local', crypt('x', gen_salt('bf')), now(), '{}', '{}', now(), now(), '', '', '', '');
+  ('00000000-0000-0000-0000-000000000000', 'f2000000-0000-0000-0000-000000000003', 'authenticated', 'authenticated', 'u3@rlstest.local', crypt('x', gen_salt('bf')), now(), '{}', '{}', now(), now(), '', '', '', ''),
+  ('00000000-0000-0000-0000-000000000000', 'f2000000-0000-0000-0000-000000000004', 'authenticated', 'authenticated', 'u4@rlstest.local', crypt('x', gen_salt('bf')), now(), '{}', '{}', now(), now(), '', '', '', '');
 
 -- trg_auth_user_created already inserted a bare profiles row (household_id null)
--- for each user above, so upsert here rather than a plain insert.
+-- for each user above, so upsert here rather than a plain insert. U4 is a second
+-- H2 (shared_flat) member, needed as the claimer in the fn_claim_listing tests
+-- below (a lister can never claim their own listing).
 insert into profiles (id, household_id, full_name) values
   ('f2000000-0000-0000-0000-000000000001', 'f1000000-0000-0000-0000-000000000001', 'U1'),
   ('f2000000-0000-0000-0000-000000000002', 'f1000000-0000-0000-0000-000000000001', 'U2'),
-  ('f2000000-0000-0000-0000-000000000003', 'f1000000-0000-0000-0000-000000000002', 'U3')
+  ('f2000000-0000-0000-0000-000000000003', 'f1000000-0000-0000-0000-000000000002', 'U3'),
+  ('f2000000-0000-0000-0000-000000000004', 'f1000000-0000-0000-0000-000000000002', 'U4')
 on conflict (id) do update set
   household_id = excluded.household_id,
   full_name = excluded.full_name;
@@ -170,6 +174,98 @@ set local request.jwt.claims to '{"sub":"f2000000-0000-0000-0000-000000000001","
 select is(
   (select count(*)::int from feedback_queue where id = 'f7000000-0000-0000-0000-000000000001'),
   1, 'author can always see their own sent feedback'
+);
+
+-- ============================================================
+-- fn_claim_listing (plan section 4.5): U3 (H2) listed a 'swap' with no
+-- bounty on assignment f4...002 (fixture above); U4 is a second H2 member
+-- who can legitimately claim it.
+-- ============================================================
+reset role;
+set local role authenticated;
+set local request.jwt.claims to '{"sub":"f2000000-0000-0000-0000-000000000003","role":"authenticated"}';
+
+select throws_ok(
+  $$select fn_claim_listing('f6000000-0000-0000-0000-000000000001')$$,
+  'P0001', null,
+  'lister (U3) cannot claim their own listing'
+);
+
+reset role;
+set local role authenticated;
+set local request.jwt.claims to '{"sub":"f2000000-0000-0000-0000-000000000004","role":"authenticated"}';
+
+select lives_ok(
+  $$select fn_claim_listing('f6000000-0000-0000-0000-000000000001')$$,
+  'U4 can claim an open listing in their own household'
+);
+
+reset role;
+select is(
+  (select status from market_listings where id = 'f6000000-0000-0000-0000-000000000001'),
+  'claimed', 'listing status flips to claimed after fn_claim_listing'
+);
+select is(
+  (select claimed_by from market_listings where id = 'f6000000-0000-0000-0000-000000000001'),
+  'f2000000-0000-0000-0000-000000000004'::uuid, 'claimed_by is set to the claimer'
+);
+select is(
+  (select current_handler_id from assignments where id = 'f4000000-0000-0000-0000-000000000002'),
+  'f2000000-0000-0000-0000-000000000004'::uuid, 'assignment current_handler_id transfers to the claimer'
+);
+select is(
+  (select count(*)::int from audit_ledger
+   where metadata ->> 'market_listing_id' = 'f6000000-0000-0000-0000-000000000001'),
+  2, 'fn_claim_listing writes one ledger row per party'
+);
+
+set local role authenticated;
+set local request.jwt.claims to '{"sub":"f2000000-0000-0000-0000-000000000004","role":"authenticated"}';
+
+select throws_ok(
+  $$select fn_claim_listing('f6000000-0000-0000-0000-000000000001')$$,
+  'P0001', null,
+  'an already-claimed listing cannot be claimed again'
+);
+
+-- ============================================================
+-- fn_retract_feedback (plan section 4.5): "Retract allowed while
+-- status = 'queued'". Reuses the H1 feedback fixture (U1 -> U2) inserted
+-- above -- its release_at was already moved to the past for the cool-off
+-- test, but status is still 'queued' (release_at only gates visibility).
+-- ============================================================
+reset role;
+set local role authenticated;
+set local request.jwt.claims to '{"sub":"f2000000-0000-0000-0000-000000000002","role":"authenticated"}';
+
+select throws_ok(
+  $$select fn_retract_feedback('f7000000-0000-0000-0000-000000000001')$$,
+  'P0001', null,
+  'only the author can retract feedback (recipient U2 cannot)'
+);
+
+reset role;
+set local role authenticated;
+set local request.jwt.claims to '{"sub":"f2000000-0000-0000-0000-000000000001","role":"authenticated"}';
+
+select lives_ok(
+  $$select fn_retract_feedback('f7000000-0000-0000-0000-000000000001')$$,
+  'author U1 can retract their own queued feedback'
+);
+
+reset role;
+select is(
+  (select status from feedback_queue where id = 'f7000000-0000-0000-0000-000000000001'),
+  'retracted', 'feedback status flips to retracted'
+);
+
+set local role authenticated;
+set local request.jwt.claims to '{"sub":"f2000000-0000-0000-0000-000000000001","role":"authenticated"}';
+
+select throws_ok(
+  $$select fn_retract_feedback('f7000000-0000-0000-0000-000000000001')$$,
+  'P0001', null,
+  'already-retracted feedback cannot be retracted again'
 );
 
 -- ============================================================
