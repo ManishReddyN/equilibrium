@@ -101,13 +101,27 @@ jobs:
 
       - name: Android debug build
         working-directory: app/android
-        # This build only exists to prove the app compiles -- CI never installs the APK on a
-        # device/emulator -- so it's restricted to a single ABI instead of the
+        # This build only exists to prove the app compiles -- CI itself never installs the APK
+        # on a device/emulator -- so it's restricted to a single ABI instead of the
         # armeabi-v7a/arm64-v8a/x86/x86_64 default in gradle.properties (used for real local/
         # release builds). Native modules (Hermes, Reanimated, RNScreens, etc.) get built via
         # CMake/NDK per ABI, so this cuts that part of the build ~4x. Override mechanism is the
         # one gradle.properties itself documents (`-PreactNativeArchitectures=...`).
-        run: ./gradlew assembleDebug --no-daemon --build-cache -PreactNativeArchitectures=x86_64
+        #
+        # arm64-v8a specifically (not x86_64): virtually every real Android phone is arm64, not
+        # x86_64 (that's emulator-only) -- picking arm64-v8a means the artifact uploaded below
+        # is actually installable via `adb install` on a real device, not just a fast no-op
+        # compile check.
+        run: ./gradlew assembleDebug --no-daemon --build-cache -PreactNativeArchitectures=arm64-v8a
+
+      - name: Upload debug APK
+        # For manual sideloading/testing only (e.g. `adb install` on a real arm64 phone) -- 7-day
+        # retention since it's just for quick manual pulls, not a release artifact.
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug-apk
+          path: app/android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 7
 
   backend:
     name: Backend (Supabase migrations, pgTAP, Prisma drift)

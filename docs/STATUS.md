@@ -201,10 +201,13 @@ the goal is Play Store submission, and this machine can't build/verify iOS regar
   step was the ~19min run's critical path (~17.5min of it) with no Gradle caching and native
   modules compiled across all four `reactNativeArchitectures` ABIs for a build that only
   proves compilability. Added `gradle/actions/setup-gradle@v4` (Gradle Home caching) and
-  restricted CI's `assembleDebug` to `-PreactNativeArchitectures=x86_64`; enabled
-  `org.gradle.parallel`/`org.gradle.caching`. Stayed on free-tier `ubuntu-latest`/`macos-15`
-  standard runners throughout, per your instruction — no paid/larger runner, no billing
-  change. First (cold-cache) run after the fix: **9m29s**, down from ~19min.
+  restricted CI's `assembleDebug` to a single ABI; enabled `org.gradle.parallel`/
+  `org.gradle.caching`. Stayed on free-tier `ubuntu-latest`/`macos-15` standard runners
+  throughout, per your instruction — no paid/larger runner, no billing change. First
+  (cold-cache) run after the fix: **9m29s**, down from ~19min. ABI picked was `x86_64` at
+  first (arbitrary), switched to `arm64-v8a` the same day so the build is also a real,
+  installable-on-your-phone debug APK (see below) rather than emulator-only — every current
+  Android phone is arm64. A new `actions/upload-artifact` step (7-day retention) uploads it.
 - **Pre-existing CI bug found and fixed while verifying the above**: CI's actual `CI` workflow
   (distinct from the unrelated `Dependabot Updates` workflow, whose own failures on dependency
   PRs had been masking this) had been failing silently since the Phase 3 push (`a4be598`) — no
