@@ -39,6 +39,14 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
+      # Caches ~/.gradle/caches + wrapper dists across runs (keyed on wrapper/lockfiles
+      # internally) and enables the CI-side half of the --build-cache task-output cache
+      # used below. This is what turns a cold ~17min native (re)compile into a
+      # mostly-cache-hit one on subsequent runs.
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-home-cache-cleanup: true
+
       - name: Write placeholder Firebase config
         # google-services.json is gitignored (real one is per-developer/CI-injected,
         # see docs/RUNBOOK.md) but the google-services Gradle plugin hard-fails if
@@ -79,7 +87,13 @@ jobs:
 
       - name: Android debug build
         working-directory: app/android
-        run: ./gradlew assembleDebug --no-daemon
+        # This build only exists to prove the app compiles -- CI never installs the APK on a
+        # device/emulator -- so it's restricted to a single ABI instead of the
+        # armeabi-v7a/arm64-v8a/x86/x86_64 default in gradle.properties (used for real local/
+        # release builds). Native modules (Hermes, Reanimated, RNScreens, etc.) get built via
+        # CMake/NDK per ABI, so this cuts that part of the build ~4x. Override mechanism is the
+        # one gradle.properties itself documents (`-PreactNativeArchitectures=...`).
+        run: ./gradlew assembleDebug --no-daemon --build-cache -PreactNativeArchitectures=x86_64
 
   backend:
     name: Backend (Supabase migrations, pgTAP, Prisma drift)
