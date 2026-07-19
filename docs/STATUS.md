@@ -224,17 +224,19 @@ the goal is Play Store submission, and this machine can't build/verify iOS regar
   actually being present so it stays inert rather than red-failing every backend push until
   you provision that secret — **this is the one workflow that can push schema to the live,
   shared-with-`roomie` Supabase project**, flagging it explicitly here).
-- **Blocked**: keystore generation needs a JDK; this machine has none locally, and the Docker
-  route broke mid-session — `wsl -l -v` shows the `docker-desktop` WSL2 distro stuck `Stopped`
-  even after killing and relaunching Docker Desktop.exe, so `docker info` just hangs rather
-  than the engine ever coming up. Looks like a WSL2/virtualization issue on this machine, not
-  something a retry fixes — see `docs/RUNBOOK.md`'s Android release keystore entry for what to
-  try. Nothing else in Phase 6 depends on this; nothing has been fabricated in its place.
+- **Keystore generated** (2026-07-19, after you fixed Docker Desktop): via an
+  `eclipse-temurin:17-jdk-alpine` container, `app/android/upload-keystore.jks` (PKCS12, alias
+  `equilibrium-upload`, valid until 2053) + `app/android/keystore.properties` (both gitignored,
+  confirmed via `git check-ignore`). Passwords were reported to you in chat — **back the
+  keystore up somewhere durable now**; there's no recovery path if it's lost once an app is
+  published with it. Full detail and the `TODO(user)` for wiring it into GitHub secrets in
+  `docs/RUNBOOK.md`.
 - **Not verified**: no release build (signed or otherwise) has actually been run anywhere yet
-  — `release-android.yml` is tag-triggered and needs secrets that don't exist (see
-  `docs/RUNBOOK.md`), and this machine can't run one locally without the JDK above. The plan's
-  own Verification Gate ("release build boots" on a device) is blocked the same way every
-  on-device gate has been all along.
+  — `release-android.yml` is tag-triggered and needs secrets that don't exist yet (see
+  `docs/RUNBOOK.md`), and building a real signed AAB locally would need the full Android SDK
+  on top of the JDK (this machine only has the bare JDK container, not the SDK/build-tools).
+  The plan's own Verification Gate ("release build boots" on a device) stays blocked the same
+  way every on-device gate has been all along, regardless.
 
 ## Outstanding items needing your input
 
@@ -249,15 +251,13 @@ the goal is Play Store submission, and this machine can't build/verify iOS regar
   and the same for `service_role_key` (from the dashboard's API settings). Without these,
   `fn_invoke_edge_function` no-ops safely rather than erroring, so this isn't blocking anything
   else — just the live push-delivery path.
-- **Android release keystore — blocked, needs a decision**: I planned to auto-generate this via
-  a Docker JDK container (you'd asked for that), but Docker Desktop broke mid-session: `wsl -l
-  -v` shows its `docker-desktop` WSL2 distro stuck `Stopped` even after I killed and relaunched
-  Docker Desktop.exe, so `docker info` hangs indefinitely rather than the engine coming up.
-  This looks like a WSL2/virtualization config issue on this machine, not something fixable by
-  retrying. Options: (1) you fix Docker Desktop (restart the machine, `wsl --update`, or
-  reinstall) and I'll generate the keystore once it's back; (2) you generate it yourself with
-  `keytool` (command in `docs/RUNBOOK.md`) if you have a JDK some other way; (3) tell me another
-  approach you'd prefer. Nothing else in Phase 6 depends on this.
+- **Android release keystore — generated, back it up**: Docker came back up after you
+  restarted it, so this is done — `app/android/upload-keystore.jks` +
+  `app/android/keystore.properties` (both gitignored). Passwords were given to you in chat
+  when generated. **Back the keystore up somewhere durable now** (password manager file
+  storage, encrypted backup) — there is no recovery path if it's lost after an app ships with
+  it. When you're ready to let `release-android.yml` actually run, base64 the `.jks` and add
+  it plus the passwords/alias as GitHub Actions secrets — exact names in `docs/RUNBOOK.md`.
 - **New CI secrets from Phase 5/6** (see `docs/RUNBOOK.md` for the full list and exact names):
   `FCM_SERVICE_ACCOUNT` and two Supabase Vault secrets (Phase 5, push delivery), plus
   `SUPABASE_URL`/`SUPABASE_ANON_KEY` (production), `GOOGLE_SERVICES_JSON`,
@@ -278,8 +278,8 @@ the goal is Play Store submission, and this machine can't build/verify iOS regar
 
 ## Next step
 
-Phase 6's Android track is built except the keystore (blocked, see above — genuinely needs
-your input, not just more waiting). Continuing into Phase 7 (hardening, tests, docs) next per
-the working agreement, since it doesn't depend on the keystore either — see
+Phase 6's Android track is now fully built, including the keystore. What's left in Phase 6 is
+entirely secrets/accounts only you can provision (see "Outstanding items" above) — no more
+code work is blocked. Phase 7 (hardening, tests, docs) is next per the working agreement — see
 `docs/roommate-app-execution-plan.md` section 7. Play Store upload itself stays blocked on the
 Play Console account above regardless.
