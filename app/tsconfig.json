@@ -8,12 +8,28 @@
     "forceConsistentCasingInFileNames": true,
     "baseUrl": ".",
     "paths": {
-      "@app/*": ["src/app/*"],
-      "@features/*": ["src/features/*"],
-      "@shared/*": ["src/shared/*"],
-      "@lib/*": ["src/lib/*"],
-      "@theme/*": ["src/theme/*"]
+      "@app/*": [
+        "src/app/*"
+      ],
+      "@features/*": [
+        "src/features/*"
+      ],
+      "@shared/*": [
+        "src/shared/*"
+      ],
+      "@lib/*": [
+        "src/lib/*"
+      ],
+      "@theme/*": [
+        "src/theme/*"
+      ]
     }
   },
-  "include": ["src", "__tests__", "index.js", "*.config.js"]
+  "include": [
+    "src",
+    "__tests__",
+    "index.js",
+    "*.config.js",
+    "nativewind-env.d.ts"
+  ]
 }

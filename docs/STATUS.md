@@ -12,6 +12,15 @@ earlier phase-by-phase check-in preference for this stretch of work. Irreversibl
 still get flagged rather than done silently. iOS/App Store work stays out of scope near-term —
 the goal is Play Store submission, and this machine can't build/verify iOS regardless.
 
+**Critical fix (2026-07-19)** — every screen had been rendering completely unstyled (no
+fonts/colors/borders/card chrome, every NativeWind `className` silently doing nothing) since
+Phase 1, and it was never caught because this was the first time the app has ever actually run
+on a device/emulator — `tsc`/`eslint`/`jest` all pass regardless of whether real native styles
+apply. Root cause: `global.css` was never `import`ed anywhere (`metro.config.js` names it as
+NativeWind's Tailwind entry point, but nothing pulled the generated module into the runtime
+bundle). One-line fix in `src/app/App.tsx`; confirmed with before/after screenshots. See
+"Local Android dev environment" below and `docs/DECISIONS.md` for full detail.
+
 ## Repo / environment
 
 - Local: `D:\personal\equilibrium`, git repo at the `equilibrium/` root.
@@ -19,10 +28,25 @@ the goal is Play Store submission, and this machine can't build/verify iOS regar
   2026-07-18 to get unlimited free GitHub Actions minutes on all runner types, notably `macos-15`
   and standard `ubuntu-latest`, both heavily rate-limited or absent on the private free tier; see
   `docs/DECISIONS.md`). Verified no secrets are committed before flipping visibility.
-- Windows 11 dev machine: no macOS/Xcode (iOS builds blocked by Apple's EULA), and no local
-  JDK/Android SDK/Ruby either. Rather than provisioning local native tooling, Android build
-  verification runs in CI (`.github/workflows/ci.yml`) on `ubuntu-latest`, which ships the
-  Android SDK preinstalled — free and unlimited since the repo is public.
+- Windows 11 dev machine: no macOS/Xcode (iOS builds blocked by Apple's EULA), so iOS build
+  verification still only happens in CI (`macos-15`, free since the repo is public). Android
+  build verification also ran only in CI (`.github/workflows/ci.yml` on `ubuntu-latest`) until
+  2026-07-19, when a full local Android dev environment was set up for the first time (JDK,
+  SDK, an emulator) — see below. Ruby/Fastlane are still CI/manual-only, no local Ruby.
+- **Local Android dev environment** (added 2026-07-19, so the app could actually be seen
+  running for the first time): native JDK 17 (portable Temurin zip, `%LOCALAPPDATA%\Java`, no
+  admin needed), Android SDK (`%LOCALAPPDATA%\Android\Sdk`: cmdline-tools, platform-tools,
+  `platforms;android-35`, `build-tools;35.0.0`, `emulator`, `system-images;android-35;
+  google_apis;x86_64`), and an AVD (`Equilibrium_Test`, Pixel 6 profile). Two real gotchas hit
+  and worked around, both worth knowing before touching Android builds on this machine again:
+  (1) `npx react-native run-android` can't find `gradlew.bat` on this machine from either Git
+  Bash or PowerShell — invoke `android/gradlew.bat` directly instead (e.g. `.\gradlew.bat
+  installDebug -PreactNativeDevServerPort=8081` from `app/android`); (2) the project sits on a
+  **ReFS**-formatted drive (`D:`), and Gradle 8.10.2 reliably throws `AccessDeniedException` on
+  ReFS during its dependencies-accessors cache setup (confirmed deterministic; a Windows
+  Defender exclusion for the project folder did not fix it) — always pass `--project-cache-dir
+  C:\gradle-project-cache` (or similar, anywhere on an NTFS drive) to work around it. Full
+  detail in `docs/DECISIONS.md`.
 - Supabase project: reusing the prior `roomie` project ref `zubxuqshcyniosmdztmw`
   (org Roomie-Backend). Legacy `roomie` schema was dropped in migration
   `0000_drop_legacy_roomie_schema.sql`.

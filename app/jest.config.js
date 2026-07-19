@@ -6,6 +6,7 @@ module.exports = {
   ],
   moduleNameMapper: {
     '^react-native-reanimated$': 'react-native-reanimated/mock',
+    '\\.css$': '<rootDir>/jest.cssMock.js',
   },
   transformIgnorePatterns: [
     'node_modules/(?!(jest-)?(react-native|@react-native|@react-navigation|@shopify/react-native-skia|@tanstack)|nativewind)',
