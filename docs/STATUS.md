@@ -36,7 +36,7 @@ the goal is Play Store submission, and this machine can't build/verify iOS regar
 | 2 | Backend: Supabase schema, RLS, Prisma | Done | `ab18310` |
 | 3 | App architecture: folders, navigation, data layer, household profile engine | Done | `db7f224` |
 | 4 | Screens and interactions | Done | `f4365d1` |
-| 5 | Push notifications and background workers | Built; live secrets/on-device test pending your input | pending |
+| 5 | Push notifications and background workers | Done (CI-verified); live secrets/on-device test pending your input | `2e1a2f2` |
 | 6 | CI/CD: Fastlane, Match, store delivery (Android track) | Started (minimal CI only) | — |
 | 7 | Hardening, tests, docs | Not started | — |
 
@@ -172,10 +172,10 @@ the goal is Play Store submission, and this machine can't build/verify iOS regar
   this app to route an id into, so the FCM `data` payload carries `{category, outboxId}`
   rather than the plan's literal `{route, id}` shape) via a standalone `navigationRef`.
 - **Verification**: `tsc` clean, `eslint` 0 errors/warnings, `jest` 11 suites/118 tests passing
-  (added Firebase Messaging/Notifee mocks to `jest.setup.js`). Migration/pgTAP verification
-  relied on CI rather than the local Supabase stack this time — Docker Desktop wasn't
-  responsive on this machine when this phase landed; **flagging this explicitly** rather than
-  claiming local verification that didn't happen. Check the `backend` CI job for this push.
+  (added Firebase Messaging/Notifee mocks to `jest.setup.js`). Docker Desktop wasn't responsive
+  on this machine when this phase landed, so migration/pgTAP verification relied on CI instead
+  of the local Supabase stack — **confirmed green** at commit `2e1a2f2` (`backend` job, 2m21s:
+  `supabase start` applied `0008_notifications_cron.sql` cleanly, pgTAP suite still passing).
 - **Not done, needs your input** (see "Outstanding items" below): the real Firebase project
   (still the Phase 1 placeholder `google-services.json`), the `FCM_SERVICE_ACCOUNT` secret,
   and the Vault `project_url`/`service_role_key` secrets on the live project — all of which
@@ -241,11 +241,10 @@ the goal is Play Store submission, and this machine can't build/verify iOS regar
 
 ## Next step
 
-Phase 5 is code-complete and pushed; watching CI's `backend` job to confirm the new
-`0008_notifications_cron.sql` migration and pgTAP suite are green there (local Docker wasn't
-responsive when this landed — see Phase 5 detail above). Once confirmed, continuing directly
-into Phase 6's Android track (Fastlane `android` lane, release keystore generation, signed
-release build + ProGuard/R8, `release-android.yml`) per the working agreement — see
-`docs/roommate-app-execution-plan.md` section 6 for the full spec. Play Store upload itself
-stays blocked on the Play Console account above; everything before that upload step is in
-scope now.
+Phase 5 is done and CI-confirmed (see above). Continuing directly into Phase 6's Android track
+(Fastlane `android` lane, release keystore generation, signed release build + ProGuard/R8,
+`release-android.yml`) per the working agreement — see `docs/roommate-app-execution-plan.md`
+section 6 for the full spec. Keystore generation needs a JDK (this machine has none locally;
+Docker was unresponsive as of Phase 5 — will retry or fall back to a CI-based approach if it
+stays down). Play Store upload itself stays blocked on the Play Console account above;
+everything before that upload step is in scope now.
