@@ -34,7 +34,7 @@ the goal is Play Store submission, and this machine can't build/verify iOS regar
 | 0 | Toolchain and repo scaffold | Done | `453c730` |
 | 1 | Core dependencies and native configuration | Done | `5290caf` |
 | 2 | Backend: Supabase schema, RLS, Prisma | Done | `ab18310` |
-| 3 | App architecture: folders, navigation, data layer, household profile engine | Done | (pending commit) |
+| 3 | App architecture: folders, navigation, data layer, household profile engine | Done | `db7f224` |
 | 4 | Screens and interactions | Not started | — |
 | 5 | Push notifications and background workers | Not started | — |
 | 6 | CI/CD: Fastlane, Match, store delivery (Android track) | Started (minimal CI only) | — |
