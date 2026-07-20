@@ -49,7 +49,18 @@ bundle). One-line fix in `src/app/App.tsx`; confirmed with before/after screensh
   detail in `docs/DECISIONS.md`.
 - Supabase project: reusing the prior `roomie` project ref `zubxuqshcyniosmdztmw`
   (org Roomie-Backend). Legacy `roomie` schema was dropped in migration
-  `0000_drop_legacy_roomie_schema.sql`.
+  `0000_drop_legacy_roomie_schema.sql`. **Connected to production on 2026-07-20**: user
+  confirmed the old `roomie` Next.js web app is dead, so it's safe to have dropped its legacy
+  tables — turned out migrations `0000`-`0006` were already applied on the live project from
+  some earlier point (confirmed via `supabase migration list --linked`, not something this
+  session did); pushed the remaining `0007`-`0009` via `supabase db push --linked`, so local
+  and production are now fully in sync. `app/.env` (gitignored, per-developer) points at
+  `https://zubxuqshcyniosmdztmw.supabase.co` for real-device testing instead of the local
+  stack. `SUPABASE_ACCESS_TOKEN`/CLI auth is done (`supabase login`, completed by the user in
+  their own terminal) — the RUNBOOK TODO for that is resolved. Vault secrets
+  (`project_url`/`service_role_key`) and edge function deploys are still outstanding (see
+  `docs/RUNBOOK.md`) — push notifications won't actually deliver against production yet, but
+  auth/household/chores/etc. all work against the real database now.
 
 ## Phase status
 
