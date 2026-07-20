@@ -22,11 +22,18 @@ export function Avatar({name, imageUri, size = 40}: AvatarProps): React.JSX.Elem
   const dimensionStyle = {width: size, height: size, borderRadius: size / 2};
 
   if (imageUri) {
-    return <Image source={{uri: imageUri}} style={dimensionStyle} accessibilityLabel={name} />;
+    return (
+      <Image
+        source={{uri: imageUri}}
+        className="border border-border"
+        style={dimensionStyle}
+        accessibilityLabel={name}
+      />
+    );
   }
 
   return (
-    <View className="items-center justify-center bg-primary-soft" style={dimensionStyle}>
+    <View className="items-center justify-center border border-border bg-primary-soft" style={dimensionStyle}>
       <Text className="font-sans-semibold text-primary" style={{fontSize: size * 0.4}}>
         {initialsFor(name)}
       </Text>

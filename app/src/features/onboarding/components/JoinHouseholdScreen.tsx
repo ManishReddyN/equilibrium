@@ -5,6 +5,7 @@ import {Text, TextInput, View} from 'react-native';
 import {Screen} from '@shared/components/Screen';
 import {Card} from '@shared/components/Card';
 import {Button} from '@shared/components/Button';
+import {colors} from '@theme/tokens';
 
 import type {OnboardingStackParamList} from '@app/navigation/types';
 import {useJoinHousehold} from '../services/onboarding';
@@ -42,7 +43,7 @@ export function JoinHouseholdScreen({route}: Props): React.JSX.Element {
             autoCapitalize="none"
             autoCorrect={false}
             placeholder="Invite code"
-            placeholderTextColor="#64748B"
+            placeholderTextColor={colors.inkMuted}
             value={code}
             onChangeText={setCode}
             className="rounded-control border border-border px-4 py-3 font-sans text-base text-ink"

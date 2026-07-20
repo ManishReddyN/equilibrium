@@ -10,11 +10,16 @@ interface ButtonProps extends Omit<PressableProps, 'children'> {
 }
 
 const variantClassNames: Record<ButtonVariant, {container: string; label: string}> = {
-  primary: {container: 'bg-primary', label: 'text-white'},
+  primary: {container: 'bg-primary shadow-sm shadow-primary/30', label: 'text-white'},
   secondary: {container: 'bg-primary-soft', label: 'text-primary'},
 };
 
-/** Primary (filled teal) / secondary (soft teal) button. Disabled state dims to 50% opacity. */
+/**
+ * Primary (filled teal, tinted shadow for a tactile/lifted feel) / secondary
+ * (soft teal) button. Disabled state dims to 50% opacity. Label tracking is
+ * slightly widened -- a small but deliberate "confident dashboard app" cue
+ * (Splitwise/Robinhood-style CTAs), not just a plain semibold label.
+ */
 export function Button({
   label,
   variant = 'primary',
@@ -32,7 +37,7 @@ export function Button({
         disabled ? 'opacity-50' : ''
       } ${className ?? ''}`}
       {...rest}>
-      <Text className={`font-sans-semibold text-base ${variantClasses.label}`}>{label}</Text>
+      <Text className={`font-sans-semibold text-base tracking-wide ${variantClasses.label}`}>{label}</Text>
     </Pressable>
   );
 }

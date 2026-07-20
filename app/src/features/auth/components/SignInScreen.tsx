@@ -4,6 +4,7 @@ import {Pressable, Text, TextInput, View} from 'react-native';
 import {Screen} from '@shared/components/Screen';
 import {Card} from '@shared/components/Card';
 import {Button} from '@shared/components/Button';
+import {colors} from '@theme/tokens';
 
 import {signInWithPassword, signUpWithPassword} from '../services/auth';
 
@@ -95,7 +96,7 @@ export function SignInScreen(): React.JSX.Element {
               <TextInput
                 autoCapitalize="words"
                 placeholder="Jamie Rivera"
-                placeholderTextColor="#64748B"
+                placeholderTextColor={colors.inkMuted}
                 value={fullName}
                 onChangeText={setFullName}
                 className="rounded-control border border-border px-4 py-3 font-sans text-base text-ink"
@@ -111,7 +112,7 @@ export function SignInScreen(): React.JSX.Element {
               autoComplete="email"
               keyboardType="email-address"
               placeholder="you@example.com"
-              placeholderTextColor="#64748B"
+              placeholderTextColor={colors.inkMuted}
               value={email}
               onChangeText={setEmail}
               className="rounded-control border border-border px-4 py-3 font-sans text-base text-ink"
@@ -126,7 +127,7 @@ export function SignInScreen(): React.JSX.Element {
               autoComplete={isSignUp ? 'new-password' : 'password'}
               secureTextEntry
               placeholder={isSignUp ? `At least ${MIN_PASSWORD_LENGTH} characters` : 'Your password'}
-              placeholderTextColor="#64748B"
+              placeholderTextColor={colors.inkMuted}
               value={password}
               onChangeText={setPassword}
               className="rounded-control border border-border px-4 py-3 font-sans text-base text-ink"

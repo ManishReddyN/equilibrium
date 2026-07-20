@@ -6,6 +6,7 @@ import {Screen} from '@shared/components/Screen';
 import {Card} from '@shared/components/Card';
 import {Button} from '@shared/components/Button';
 import {ListRow} from '@shared/components/ListRow';
+import {colors} from '@theme/tokens';
 
 import type {OnboardingStackParamList} from '@app/navigation/types';
 import {useAddChores, type DraftChore} from '../services/onboarding';
@@ -66,7 +67,7 @@ export function ChoreSetupScreen({navigation, route}: Props): React.JSX.Element 
           <Text className="font-sans-medium text-sm text-ink">Chore title</Text>
           <TextInput
             placeholder="Dishes"
-            placeholderTextColor="#64748B"
+            placeholderTextColor={colors.inkMuted}
             value={title}
             onChangeText={setTitle}
             className="rounded-control border border-border px-4 py-3 font-sans text-base text-ink"

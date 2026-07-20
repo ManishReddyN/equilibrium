@@ -10,6 +10,7 @@ import {useHouseholdProfile} from '@shared/hooks/useHouseholdProfile';
 import {formatDateTime} from '@shared/utils/dates';
 import {formatSignedPoints, idealShareForMemberCount} from '@shared/utils/points';
 import {CheckCircle2, AlertTriangle, ArrowLeftRight} from '@theme/icons';
+import {colors} from '@theme/tokens';
 import type {Database} from '@lib/database.types';
 
 import {useEquilibrium, useLedgerHistory} from '../services/ledger';
@@ -120,7 +121,7 @@ export function LedgerScreen(): React.JSX.Element {
               <View
                 key={entry.id}
                 className={`flex-row items-center gap-3 py-2 ${index > 0 ? 'border-t border-border' : ''}`}>
-                <Icon size={20} strokeWidth={1.75} color="#64748B" />
+                <Icon size={20} strokeWidth={1.75} color={colors.inkMuted} />
                 <View className="flex-1">
                   <Text className="font-sans-medium text-base text-ink">
                     {memberNameById.get(entry.user_id) ?? 'Member'}

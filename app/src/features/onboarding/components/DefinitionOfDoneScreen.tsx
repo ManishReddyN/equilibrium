@@ -105,7 +105,7 @@ export function DefinitionOfDoneScreen({navigation, route}: Props): React.JSX.El
             <TextInput
               multiline
               placeholder="e.g. Dishes washed, dried, and put away; counters wiped."
-              placeholderTextColor="#64748B"
+              placeholderTextColor={colors.inkMuted}
               value={drafts[chore.id] ?? ''}
               onChangeText={text => setDrafts(current => ({...current, [chore.id]: text}))}
               className="min-h-[60px] rounded-control border border-border px-4 py-3 font-sans text-base text-ink"

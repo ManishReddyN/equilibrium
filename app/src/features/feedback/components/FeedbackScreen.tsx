@@ -77,7 +77,7 @@ export function FeedbackScreen(): React.JSX.Element {
         <TextInput
           multiline
           placeholder="Something on your mind..."
-          placeholderTextColor="#64748B"
+          placeholderTextColor={colors.inkMuted}
           value={body}
           onChangeText={setBody}
           className="min-h-[80px] rounded-control border border-border px-4 py-3 font-sans text-base text-ink"
@@ -123,7 +123,7 @@ export function FeedbackScreen(): React.JSX.Element {
                   <Text className="font-sans text-base text-ink">{item.body}</Text>
                   {isPending ? (
                     <View className="mt-1 flex-row items-center gap-1">
-                      <Clock size={14} strokeWidth={1.75} color="#64748B" />
+                      <Clock size={14} strokeWidth={1.75} color={colors.inkMuted} />
                       <Text className="font-sans text-xs text-ink-muted">
                         Delivers in {formatDurationShort(releaseAt.getTime() - Date.now())}
                       </Text>

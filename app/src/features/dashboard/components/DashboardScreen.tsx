@@ -10,6 +10,7 @@ import {EmptyState} from '@shared/components/EmptyState';
 import {useHouseholdProfile} from '@shared/hooks/useHouseholdProfile';
 import {bucketDueDate, formatDueDate, type DueBucket} from '@shared/utils/dates';
 import {CheckCircle2, Repeat2} from '@theme/icons';
+import {colors} from '@theme/tokens';
 import type {MainTabParamList} from '@app/navigation/types';
 
 import {
@@ -101,7 +102,7 @@ export function DashboardScreen(): React.JSX.Element {
 
       {!hasAny && !assignments.isLoading ? (
         <EmptyState
-          icon={<CheckCircle2 size={40} strokeWidth={1.75} color="#0D9488" />}
+          icon={<CheckCircle2 size={40} strokeWidth={1.75} color={colors.primary} />}
           title="All settled for today."
           subtitle="New chores appear here as they're assigned to you."
         />
@@ -133,7 +134,7 @@ export function DashboardScreen(): React.JSX.Element {
                       }
                       leading={
                         assignment.isDebitMakeup ? (
-                          <Repeat2 size={20} strokeWidth={1.75} color="#64748B" />
+                          <Repeat2 size={20} strokeWidth={1.75} color={colors.inkMuted} />
                         ) : undefined
                       }
                     />

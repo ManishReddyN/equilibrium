@@ -16,6 +16,7 @@ import {
   type MakeupObligation,
 } from '@shared/utils/rotation';
 import {RotateCw} from '@theme/icons';
+import {colors} from '@theme/tokens';
 
 import {useChores, useMakeupObligations, type ChoreWithHandler} from '../services/chores';
 import {RotationCarousel, type RotationCarouselCard} from './RotationCarousel';
@@ -112,7 +113,7 @@ export function RotationScreen(): React.JSX.Element {
 
       {rows.length === 0 && !chores.isLoading ? (
         <EmptyState
-          icon={<RotateCw size={40} strokeWidth={1.75} color="#0D9488" />}
+          icon={<RotateCw size={40} strokeWidth={1.75} color={colors.primary} />}
           title="No chores yet."
           subtitle="Chores set up during onboarding will appear here."
         />

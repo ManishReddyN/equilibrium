@@ -51,10 +51,10 @@
 	<false/>
 	<key>UIAppFonts</key>
 	<array>
-		<string>Nunito-Bold.ttf</string>
-		<string>Nunito-Medium.ttf</string>
-		<string>Nunito-Regular.ttf</string>
-		<string>Nunito-SemiBold.ttf</string>
+		<string>PlusJakartaSans-Bold.ttf</string>
+		<string>PlusJakartaSans-Medium.ttf</string>
+		<string>PlusJakartaSans-Regular.ttf</string>
+		<string>PlusJakartaSans-SemiBold.ttf</string>
 	</array>
 </dict>
 </plist>

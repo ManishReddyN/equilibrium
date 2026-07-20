@@ -69,7 +69,7 @@ export function MarketScreen(): React.JSX.Element {
 
       {rows.length === 0 && !listings.isLoading ? (
         <EmptyState
-          icon={<ArrowLeftRight size={40} strokeWidth={1.75} color="#0D9488" />}
+          icon={<ArrowLeftRight size={40} strokeWidth={1.75} color={colors.primary} />}
           title="No open listings."
           subtitle="Chores listed for swap, drop, or sublet appear here."
         />

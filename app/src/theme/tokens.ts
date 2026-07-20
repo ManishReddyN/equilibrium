@@ -6,17 +6,19 @@
  */
 export const colors = {
   canvas: '#F8FAFC',
-  primary: '#0D9488',
+  primary: '#0F766E',
   primarySoft: '#CCFBF1',
   border: '#E2E8F0',
   warn: '#D97706',
+  success: '#059669',
+  danger: '#DC2626',
   ink: '#0F172A',
   inkMuted: '#64748B',
 } as const;
 
 export const radii = {
-  card: 16,
-  control: 12,
+  card: 14,
+  control: 10,
 } as const;
 
 /**
@@ -26,7 +28,7 @@ export const radii = {
  * accents for contrast against the canvas background.
  */
 export const celebrationPalette = [
-  '#0D9488', // primary teal
+  '#0F766E', // primary teal
   '#2DD4BF', // lighter teal
   '#5EEAD4', // pale teal
   '#84A98C', // sage
@@ -34,8 +36,8 @@ export const celebrationPalette = [
 ] as const;
 
 export const fontFamily = {
-  sans: 'Nunito-Regular',
-  sansMedium: 'Nunito-Medium',
-  sansSemibold: 'Nunito-SemiBold',
-  sansBold: 'Nunito-Bold',
+  sans: 'PlusJakartaSans-Regular',
+  sansMedium: 'PlusJakartaSans-Medium',
+  sansSemibold: 'PlusJakartaSans-SemiBold',
+  sansBold: 'PlusJakartaSans-Bold',
 } as const;
