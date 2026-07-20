@@ -303,6 +303,29 @@ bundle). One-line fix in `src/app/App.tsx`; confirmed with before/after screensh
 - Apple/App Store items (Developer account, Match certs repo) are **not** being pursued right
   now per your Play-Store-first framing.
 
+## Real end-to-end verification (2026-07-19, first time ever)
+
+With the emulator up and NativeWind fixed, actually exercised the app end-to-end for the first
+time in this project's history — sign-up, session, AuthGate → Onboarding — and it surfaced two
+more real bugs no prior check could have caught, both now fixed:
+
+- **`.env`'s `SUPABASE_URL` needed `10.0.2.2` instead of `127.0.0.1`** for the Android emulator
+  to reach the local Supabase stack (`127.0.0.1` from inside the emulator means the emulator
+  itself). See `.env.example` for the note; Metro also needed `--reset-cache` to pick it up.
+- **`service_role` had zero grants on any table, and zero EXECUTE on `fn_invoke_edge_function`/
+  `fn_rotation_tick`** — meaning all three Phase 5 edge functions would have failed with
+  "permission denied" the instant any of them actually ran. Root cause: this project's Supabase
+  config gives new tables/functions no automatic Data API exposure to *any* role (including
+  service_role) without an explicit `GRANT`; every migration remembered anon/authenticated but
+  never service_role. Fixed in `supabase/migrations/0009_service_role_grants.sql`. Confirmed
+  broken before / working after via direct `psql`/`curl` checks, not just "the SQL reads
+  right." Full detail in `docs/DECISIONS.md`.
+
+Both were invisible to every check that ran before this (tsc/eslint/jest, CI's pgTAP suite) —
+none of them actually invoke an edge function or run the app against a real device. This is the
+main argument for keeping the local Android emulator set up going forward rather than only
+trusting `tsc`/`lint`/`jest`/CI green.
+
 ## Next step
 
 Phase 6's Android track is now fully built, including the keystore. What's left in Phase 6 is
