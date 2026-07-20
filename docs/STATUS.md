@@ -121,10 +121,10 @@ bundle). One-line fix in `src/app/App.tsx`; confirmed with before/after screensh
   `SessionProvider` (Supabase auth session + `onAuthStateChange`, MMKV-backed storage adapter)
   composes the whole stack in the new `app/src/app/App.tsx`, replacing Phase 1's `ProbeScreen`.
 - **Feature screens/services** (functional, not yet polished per Phase 4's interaction spec):
-  sign-in (OTP), full onboarding flow (welcome → create-or-join → household basics → chore
-  setup → definition-of-done → invite share / join-by-code), dashboard, rotation, ledger,
-  market, feedback, household settings — each with a services layer wrapping the relevant
-  Supabase queries/RPCs from Phase 2's schema.
+  sign-in (email+password as of 2026-07-19 — see below; originally OTP), full onboarding flow
+  (welcome → create-or-join → household basics → chore setup → definition-of-done → invite
+  share / join-by-code), dashboard, rotation, ledger, market, feedback, household settings —
+  each with a services layer wrapping the relevant Supabase queries/RPCs from Phase 2's schema.
 - **ESLint feature isolation**: dynamically-generated per-feature `no-restricted-imports`
   overrides in `app/.eslintrc.js` banning the `@features/<other>/*` alias from within any
   other feature's files (real violation caught and fixed during this phase — see

@@ -1,35 +1,42 @@
 /**
- * Email + OTP sign-in, wrapping `supabase.auth` directly (no bespoke backend
- * route -- Supabase Auth issues and verifies the one-time code itself).
+ * Email + password sign-in/sign-up, wrapping `supabase.auth` directly.
  *
- * Plan-gap fill: the execution plan's RootNavigator spec ("AuthGate ->
- * Onboarding | MainTabs") assumes a signed-in user before onboarding ever
- * starts (household creation needs `auth.uid()`), but the plan never
- * specifies *how* that sign-in happens. Anonymous auth was considered and
- * rejected -- roommates need a durable identity that survives reinstalls and
- * works across each roommate's own device, which anonymous sessions don't
- * provide. Magic-link was considered and rejected in favor of a 6-digit OTP
- * code because deep-link handling for magic links is real added complexity
- * (and collides with the `equilibrium://join?code=` invite deep link), while
- * `signInWithOtp` + `verifyOtp` needs no link handling at all: the user types
- * the code Supabase emails them. See docs/DECISIONS.md.
+ * Supersedes the OTP-based flow this file used until 2026-07-19 (see
+ * docs/DECISIONS.md for that original rationale, and the same file for why
+ * it was replaced): explicit user direction to start with the simplest
+ * possible auth -- plain email + password -- and layer email verification
+ * on top later, rather than an OTP round-trip on every sign-in.
+ *
+ * `enable_confirmations` is currently `false` in supabase/config.toml (local
+ * dev), so `signUp` establishes a session immediately on this project as
+ * configured today; `signUpWithPassword`'s `hasSession` return value lets the
+ * UI handle either case correctly regardless, since the *live* project's
+ * actual confirmation setting hasn't been verified (docs/RUNBOOK.md) and
+ * flipping it on later (the "add email verification later" half of this
+ * change) needs no client-side change at all as a result.
  */
 import {supabase} from '@lib/supabase';
 
-/** Sends a 6-digit one-time code to `email`. Creates the auth user on first sign-in. */
-export async function requestOtp(email: string): Promise<void> {
-  const {error} = await supabase.auth.signInWithOtp({
+export interface SignUpResult {
+  /** False if email confirmation is required before a session exists -- a project-level Supabase Auth setting, not something this client controls. */
+  hasSession: boolean;
+}
+
+/** Creates the auth user (and, via `fn_handle_new_user`, its `profiles` row) and signs in. */
+export async function signUpWithPassword(email: string, password: string, fullName: string): Promise<SignUpResult> {
+  const {data, error} = await supabase.auth.signUp({
     email,
-    options: {shouldCreateUser: true},
+    password,
+    options: {data: {full_name: fullName}},
   });
   if (error) {
     throw error;
   }
+  return {hasSession: data.session !== null};
 }
 
-/** Verifies the 6-digit code sent by `requestOtp`, establishing a session on success. */
-export async function verifyOtp(email: string, token: string): Promise<void> {
-  const {error} = await supabase.auth.verifyOtp({email, token, type: 'email'});
+export async function signInWithPassword(email: string, password: string): Promise<void> {
+  const {error} = await supabase.auth.signInWithPassword({email, password});
   if (error) {
     throw error;
   }
