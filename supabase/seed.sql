@@ -72,6 +72,13 @@ insert into chores (id, household_id, title, definition_of_done, complexity_weig
   ('b0000000-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-000000000001', 'Dishes', 'Sink empty, counters wiped', 2, true, 2),
   ('b0000000-0000-0000-0000-000000000002', 'a0000000-0000-0000-0000-000000000001', 'Trash and recycling', 'Bins out, liners replaced', 1, true, 7);
 
+-- trg_chores_bootstrap_assignment (migration 0012) already auto-created a
+-- rotation_cycle=1 pending assignment for each chore above; this fixture
+-- supplies its own hand-authored history instead, so clear those out first.
+delete from assignments where chore_id in (
+  'b0000000-0000-0000-0000-000000000001', 'b0000000-0000-0000-0000-000000000002'
+);
+
 insert into assignments (id, chore_id, household_id, current_handler_id, status, rotation_cycle, target_completion_date, completed_at) values
   ('c0000000-0000-0000-0000-000000000001', 'b0000000-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', 'completed', 1, now() - interval '6 days', now() - interval '6 days'),
   ('c0000000-0000-0000-0000-000000000002', 'b0000000-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', 'completed', 2, now() - interval '4 days', now() - interval '4 days'),
@@ -104,6 +111,11 @@ insert into chores (id, household_id, title, definition_of_done, complexity_weig
   ('b0000000-0000-0000-0000-000000000005', 'a0000000-0000-0000-0000-000000000002', 'Vacuum common areas', 'Living room and hallway', 2, true, 3),
   ('b0000000-0000-0000-0000-000000000006', 'a0000000-0000-0000-0000-000000000002', 'Recycling sort', 'Bins sorted and out for pickup', 1, true, 7);
 
+delete from assignments where chore_id in (
+  'b0000000-0000-0000-0000-000000000003', 'b0000000-0000-0000-0000-000000000004',
+  'b0000000-0000-0000-0000-000000000005', 'b0000000-0000-0000-0000-000000000006'
+);
+
 insert into assignments (id, chore_id, household_id, current_handler_id, status, rotation_cycle, target_completion_date, completed_at) values
   ('c0000000-0000-0000-0000-000000000007', 'b0000000-0000-0000-0000-000000000003', 'a0000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000003', 'completed', 1, now() - interval '6 days', now() - interval '6 days'),
   ('c0000000-0000-0000-0000-000000000008', 'b0000000-0000-0000-0000-000000000004', 'a0000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000004', 'completed', 1, now() - interval '5 days', now() - interval '5 days'),
@@ -134,6 +146,10 @@ insert into market_listings (household_id, assignment_id, lister_id, listing_typ
 insert into chores (id, household_id, title, definition_of_done, complexity_weight, is_recurring, recurrence_days) values
   ('b0000000-0000-0000-0000-000000000007', 'a0000000-0000-0000-0000-000000000003', 'Common room tidy', 'Surfaces clear, trash emptied', 3, true, 7),
   ('b0000000-0000-0000-0000-000000000008', 'a0000000-0000-0000-0000-000000000003', 'Laundry room upkeep', 'Lint traps cleared, floor swept', 2, true, 7);
+
+delete from assignments where chore_id in (
+  'b0000000-0000-0000-0000-000000000007', 'b0000000-0000-0000-0000-000000000008'
+);
 
 insert into assignments (id, chore_id, household_id, current_handler_id, status, rotation_cycle, target_completion_date, completed_at) values
   ('c0000000-0000-0000-0000-00000000000f', 'b0000000-0000-0000-0000-000000000007', 'a0000000-0000-0000-0000-000000000003', '10000000-0000-0000-0000-000000000007', 'completed', 1, now() - interval '5 days', now() - interval '5 days'),

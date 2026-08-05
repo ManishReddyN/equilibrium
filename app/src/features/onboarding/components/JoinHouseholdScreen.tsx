@@ -42,11 +42,13 @@ export function JoinHouseholdScreen({route}: Props): React.JSX.Element {
           <TextInput
             autoCapitalize="none"
             autoCorrect={false}
-            placeholder="Invite code"
+            keyboardType="number-pad"
+            maxLength={8}
+            placeholder="8-digit code"
             placeholderTextColor={colors.inkMuted}
             value={code}
-            onChangeText={setCode}
-            className="rounded-control border border-border px-4 py-3 font-sans text-base text-ink"
+            onChangeText={text => setCode(text.replace(/\D/g, ''))}
+            className="rounded-control border border-border px-4 py-3 text-center font-sans-bold text-2xl tracking-widest text-ink"
           />
           {errorMessage ? <Text className="font-sans text-sm text-warn">{errorMessage}</Text> : null}
           <Button

@@ -11,6 +11,7 @@ import {Avatar} from '@shared/components/Avatar';
 import {Button} from '@shared/components/Button';
 import {useHousehold, useMembers} from '@shared/hooks/useHousehold';
 import {useGenerateInvite} from '@shared/hooks/useGenerateInvite';
+import {formatInviteCode, shareMessage} from '@shared/utils/inviteCode';
 import {ProfileGate} from '@shared/components/ProfileGate';
 import {supabase} from '@lib/supabase';
 
@@ -74,21 +75,21 @@ export function HouseholdScreen({navigation}: Props): React.JSX.Element {
       <Card className="gap-3">
         {generateInvite.data ? (
           <>
-            <Text selectable className="font-sans text-sm text-ink">
-              {generateInvite.data.deepLink}
+            <Text selectable className="text-center font-sans-bold text-2xl tracking-widest text-ink">
+              {formatInviteCode(generateInvite.data.code)}
             </Text>
             <View className="flex-row gap-2">
               <Button
                 label="Copy"
                 variant="secondary"
                 className="flex-1"
-                onPress={() => Clipboard.setString(generateInvite.data?.deepLink ?? '')}
+                onPress={() => Clipboard.setString(generateInvite.data?.code ?? '')}
               />
               <Button
                 label="Share"
                 className="flex-1"
                 onPress={() => {
-                  void Share.share({message: generateInvite.data?.deepLink ?? ''});
+                  void Share.share({message: shareMessage(generateInvite.data?.code ?? '')});
                 }}
               />
             </View>

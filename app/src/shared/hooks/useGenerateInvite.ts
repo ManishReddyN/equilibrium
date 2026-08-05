@@ -4,7 +4,6 @@ import {supabase} from '@lib/supabase';
 
 export interface GeneratedInvite {
   code: string;
-  deepLink: string;
 }
 
 /**
@@ -14,6 +13,9 @@ export interface GeneratedInvite {
  * lives in `shared/` rather than either feature per the plan's "features
  * never import from other features; cross-feature needs go through shared/
  * or lib/" rule (plan section 3.1).
+ *
+ * Returns a plain 8-digit code (see migration 0011) meant to be typed into
+ * JoinHouseholdScreen's manual-entry field -- not a deep link.
  */
 export function useGenerateInvite(): ReturnType<typeof useMutation<GeneratedInvite, Error, void>> {
   return useMutation({
@@ -22,7 +24,7 @@ export function useGenerateInvite(): ReturnType<typeof useMutation<GeneratedInvi
       if (error) {
         throw error;
       }
-      return {code: data, deepLink: `equilibrium://join?code=${encodeURIComponent(data)}`};
+      return {code: data};
     },
   });
 }

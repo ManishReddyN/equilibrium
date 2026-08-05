@@ -7,6 +7,7 @@ import {Screen} from '@shared/components/Screen';
 import {Card} from '@shared/components/Card';
 import {Button} from '@shared/components/Button';
 import {useGenerateInvite} from '@shared/hooks/useGenerateInvite';
+import {formatInviteCode, shareMessage} from '@shared/utils/inviteCode';
 
 import type {OnboardingStackParamList} from '@app/navigation/types';
 import {useOnboardingStore} from '../onboardingStore';
@@ -39,19 +40,21 @@ export function InviteShareScreen(_props: Props): React.JSX.Element {
             <Text className="font-sans text-sm text-ink-muted">Generating invite...</Text>
           ) : generateInvite.data ? (
             <>
-              <Text selectable className="font-sans text-base text-ink">
-                {generateInvite.data.deepLink}
+              <Text selectable className="text-center font-sans-bold text-4xl tracking-widest text-ink">
+                {formatInviteCode(generateInvite.data.code)}
               </Text>
-              <Text className="font-sans text-xs text-ink-muted">Expires in 7 days</Text>
+              <Text className="text-center font-sans text-xs text-ink-muted">
+                Share this code -- expires in 7 days
+              </Text>
               <Button
-                label="Copy link"
+                label="Copy code"
                 variant="secondary"
-                onPress={() => Clipboard.setString(generateInvite.data?.deepLink ?? '')}
+                onPress={() => Clipboard.setString(generateInvite.data?.code ?? '')}
               />
               <Button
                 label="Share"
                 onPress={() => {
-                  void Share.share({message: generateInvite.data?.deepLink ?? ''});
+                  void Share.share({message: shareMessage(generateInvite.data?.code ?? '')});
                 }}
               />
             </>

@@ -9,6 +9,7 @@ export {
   RotateCw,
   Scale,
   Users,
+  Circle,
   CheckCircle2,
   AlertTriangle,
   ArrowLeftRight,

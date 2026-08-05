@@ -1,5 +1,5 @@
 import React, {useMemo, useRef, useState} from 'react';
-import {Alert, Text, View} from 'react-native';
+import {Alert, Pressable, Text, View} from 'react-native';
 import {useNavigation} from '@react-navigation/native';
 import type {BottomTabNavigationProp} from '@react-navigation/bottom-tabs';
 
@@ -9,7 +9,7 @@ import {SectionHeader} from '@shared/components/SectionHeader';
 import {EmptyState} from '@shared/components/EmptyState';
 import {useHouseholdProfile} from '@shared/hooks/useHouseholdProfile';
 import {bucketDueDate, formatDueDate, type DueBucket} from '@shared/utils/dates';
-import {CheckCircle2, Repeat2} from '@theme/icons';
+import {CheckCircle2, Circle, Repeat2} from '@theme/icons';
 import {colors} from '@theme/tokens';
 import type {MainTabParamList} from '@app/navigation/types';
 
@@ -136,6 +136,16 @@ export function DashboardScreen(): React.JSX.Element {
                         assignment.isDebitMakeup ? (
                           <Repeat2 size={20} strokeWidth={1.75} color={colors.inkMuted} />
                         ) : undefined
+                      }
+                      trailing={
+                        <Pressable
+                          disabled={completeAssignment.isPending || skipAssignment.isPending}
+                          onPress={() => handleComplete(assignment)}
+                          hitSlop={12}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Mark ${assignment.choreTitle} done`}>
+                          <Circle size={26} strokeWidth={1.75} color={colors.primary} />
+                        </Pressable>
                       }
                     />
                   </View>
